@@ -15,15 +15,17 @@ type BoardType = "marketing" | "product";
 const COLUMNS: Column[] = ["inbox", "in-progress", "review", "done", "blocked", "junk"];
 
 const AGENTS = [
-  { id: "aria", label: "Aria", color: "#BD632F", role: "Manager" },
+  { id: "aria", label: "Aria", color: "#BD632F", role: "Strategy" },
   { id: "maya", label: "Maya", color: "#A4243B", role: "Copy" },
   { id: "leo", label: "Leo", color: "#D8973C", role: "Social" },
   { id: "sage", label: "Sage", color: "#5C8A6C", role: "SEO/GEO" },
   { id: "rex", label: "Rex", color: "#6B8A9C", role: "Paid Ads" },
+  { id: "vlad", label: "Vlad", color: "#F5F4F2", role: "Founder" },
 ];
 
 export function Board() {
   const [activeBoard, setActiveBoard] = useState<BoardType>("marketing");
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [docDragging, setDocDragging] = useState(false);
   const [docIntake, setDocIntake] = useState<string | null>(null);
@@ -33,8 +35,12 @@ export function Board() {
 
   const cards = useQuery(api.cards.listAll, { board: activeBoard }) ?? [];
 
+  const filteredCards = activeAgent
+    ? cards.filter((c) => c.assignee === activeAgent)
+    : cards;
+
   const cardsByColumn = COLUMNS.reduce((acc, col) => {
-    acc[col] = cards.filter((c) => c.column === col).sort((a, b) => a.order - b.order);
+    acc[col] = filteredCards.filter((c) => c.column === col).sort((a, b) => a.order - b.order);
     return acc;
   }, {} as Record<Column, typeof cards>);
 
@@ -131,19 +137,42 @@ export function Board() {
 
         {/* Agents */}
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, justifyContent: "center" }}>
-          {AGENTS.map((a) => (
-            <div key={a.id} title={`${a.label} — ${a.role}`} style={{
-              display: "flex", alignItems: "center", gap: "5px",
-              padding: "3px 8px",
-              borderRadius: "6px",
-              background: `${a.color}18`,
-              border: `1px solid ${a.color}33`,
-            }}>
-              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: a.color }} />
-              <span style={{ fontSize: "11px", fontWeight: 500, color: a.color }}>{a.label}</span>
-              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{a.role}</span>
-            </div>
-          ))}
+          {AGENTS.map((a) => {
+            const isActive = activeAgent === a.id;
+            return (
+              <button
+                key={a.id}
+                onClick={() => setActiveAgent(isActive ? null : a.id)}
+                title={`${a.label} — ${a.role}${isActive ? " (click to clear)" : ""}`}
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "3px 8px",
+                  borderRadius: "6px",
+                  background: isActive ? `${a.color}30` : `${a.color}10`,
+                  border: `1px solid ${isActive ? a.color : `${a.color}33`}`,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                  outline: "none",
+                }}
+              >
+                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: a.color, opacity: isActive ? 1 : 0.6 }} />
+                <span style={{ fontSize: "11px", fontWeight: isActive ? 700 : 500, color: a.color }}>{a.label}</span>
+                <span style={{ fontSize: "10px", color: isActive ? a.color : "var(--text-muted)", opacity: isActive ? 0.8 : 1 }}>{a.role}</span>
+              </button>
+            );
+          })}
+          {activeAgent && (
+            <button
+              onClick={() => setActiveAgent(null)}
+              style={{
+                fontSize: "11px", color: "var(--text-muted)",
+                background: "none", border: "none", cursor: "pointer",
+                padding: "3px 6px", borderRadius: "4px",
+              }}
+            >
+              ✕ clear
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
