@@ -5,7 +5,7 @@ import { KanbanCard } from "./KanbanCard";
 import { CardModal } from "./CardModal";
 import { Id } from "@/convex/_generated/dataModel";
 
-type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
+type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type Priority = "low" | "medium" | "high";
 type Category = "Marketing" | "Product" | "Idea";
 type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
@@ -30,6 +30,7 @@ const COLUMN_LABELS: Record<Column, string> = {
   "in-progress": "In Progress",
   "review": "Review",
   "done": "Done",
+  "blocked": "Blocked",
   "junk": "Junk",
 };
 
@@ -38,6 +39,7 @@ const COLUMN_ACCENT: Record<Column, string> = {
   "in-progress": "#D8973C",
   "review": "#6B8A9C",
   "done": "#5C8A6C",
+  "blocked": "#A4243B",
   "junk": "#6B6A68",
 };
 

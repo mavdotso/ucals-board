@@ -9,10 +9,10 @@ import { DocIntakeModal } from "./DocIntakeModal";
 import { GlobalSearch } from "./GlobalSearch";
 import Link from "next/link";
 
-type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
+type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type BoardType = "marketing" | "product";
 
-const COLUMNS: Column[] = ["inbox", "in-progress", "review", "done", "junk"];
+const COLUMNS: Column[] = ["inbox", "in-progress", "review", "done", "blocked", "junk"];
 
 const AGENTS = [
   { id: "aria", label: "Aria", color: "#BD632F", role: "Manager" },

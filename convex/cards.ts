@@ -24,7 +24,7 @@ export const create = mutation({
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     category: v.union(v.literal("Marketing"), v.literal("Product"), v.literal("Idea")),
     board: v.union(v.literal("marketing"), v.literal("product")),
-    column: v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("junk")),
+    column: v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk")),
     assignee: v.optional(v.union(v.literal("vlad"), v.literal("aria"), v.literal("maya"), v.literal("leo"), v.literal("sage"), v.literal("rex"))),
   },
   handler: async (ctx, args) => {
@@ -46,7 +46,7 @@ export const update = mutation({
     notes: v.optional(v.string()),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
     category: v.optional(v.union(v.literal("Marketing"), v.literal("Product"), v.literal("Idea"))),
-    column: v.optional(v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("junk")),),
+    column: v.optional(v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk")),),
     assignee: v.optional(v.union(v.literal("vlad"), v.literal("aria"), v.literal("maya"), v.literal("leo"), v.literal("sage"), v.literal("rex"))),
     order: v.optional(v.number()),
   },
@@ -94,7 +94,7 @@ export const remove = mutation({
 export const moveCard = mutation({
   args: {
     id: v.id("cards"),
-    newColumn: v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("junk")),
+    newColumn: v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk")),
     newOrder: v.number(),
   },
   handler: async (ctx, args) => {

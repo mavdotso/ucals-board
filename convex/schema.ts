@@ -14,6 +14,7 @@ export default defineSchema({
       v.literal("in-progress"),
       v.literal("review"),
       v.literal("done"),
+      v.literal("blocked"),
       v.literal("junk")
     ),
     assignee: v.optional(v.union(
