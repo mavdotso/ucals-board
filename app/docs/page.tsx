@@ -144,7 +144,7 @@ export default function DocsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newPath, setNewPath] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const docs = useQuery(api.docs.list, { board }) ?? [];
   const selectedDoc = useQuery(api.docs.get, selectedId ? { id: selectedId } : "skip");
