@@ -2,8 +2,6 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import Anthropic from "@anthropic-ai/sdk";
-
 type Board = "marketing" | "product";
 type Priority = "low" | "medium" | "high";
 type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
@@ -36,36 +34,14 @@ export function DocIntakeModal({ content, board, onClose }: { content: string; b
     setParsing(true);
     setError(null);
     try {
-      const client = new Anthropic();
-      // Strip HTML tags for cleaner parsing
-      const text = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 8000);
-
-      const response = await client.messages.create({
-        model: "claude-opus-4-5",
-        max_tokens: 2000,
-        messages: [{
-          role: "user",
-          content: `You are Aria, UCals marketing manager. Parse this document and extract all actionable tasks.
-
-For each task, output JSON with these exact fields:
-- title: short action-oriented title (max 60 chars)
-- description: what needs to be done (1-3 sentences)
-- priority: "high" | "medium" | "low"
-- assignee: "maya" (copy/landing page/email) | "leo" (social media/Twitter/LinkedIn) | "sage" (SEO/GEO/keywords) | "rex" (paid ads/Meta/Google Ads)
-- category: always "Marketing"
-
-Return ONLY a JSON array, no other text.
-
-Document:
-${text}`
-        }],
+      const res = await fetch("/api/parse-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
       });
-
-      const raw = (response.content[0] as any).text.trim();
-      const jsonMatch = raw.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("Could not parse response");
-      const parsed = JSON.parse(jsonMatch[0]) as ParsedCard[];
-      setCards(parsed);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to parse");
+      setCards(data.cards as ParsedCard[]);
     } catch (e: any) {
       setError(e.message ?? "Failed to parse document");
     } finally {
