@@ -35,6 +35,20 @@ export default defineSchema({
     .index("by_column", ["board", "column", "order"])
     .index("by_board", ["board", "order"]),
 
+  agentJobs: defineTable({
+    cardId: v.id("cards"),
+    assignee: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    board: v.union(v.literal("marketing"), v.literal("product")),
+    status: v.union(v.literal("pending"), v.literal("running"), v.literal("done"), v.literal("failed")),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    docPath: v.optional(v.string()),
+    error: v.optional(v.string()),
+  }).index("by_status", ["status", "createdAt"]),
+
   docs: defineTable({
     path: v.string(),       // e.g. "maya/landing-page-copy.md"
     title: v.string(),

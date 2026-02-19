@@ -20,6 +20,7 @@ interface Card {
   column: Column;
   board: Board;
   assignee?: Assignee;
+  agentNotes?: { agent: string; content: string; createdAt: number }[];
   order: number;
 }
 
@@ -248,6 +249,31 @@ export function CardModal({ card, defaultColumn = "inbox", board, onClose }: Car
             ))}
           </div>
         </div>
+
+        {/* Agent notes */}
+        {card?.agentNotes && card.agentNotes.length > 0 && (
+          <div>
+            <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Agent Activity</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "160px", overflowY: "auto" }}>
+              {card.agentNotes.map((note, i) => (
+                <div key={i} style={{
+                  background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
+                  borderRadius: "7px", padding: "8px 10px",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: ASSIGNEES.find(a => a.id === note.agent)?.color ?? "var(--text-muted)", textTransform: "capitalize" }}>
+                      {note.agent}
+                    </span>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                      {new Date(note.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{note.content}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Column */}
         <div>
