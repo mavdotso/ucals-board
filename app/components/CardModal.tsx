@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
-type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
+type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type Priority = "low" | "medium" | "high";
 type Category = "Marketing" | "Product" | "Idea";
 type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";

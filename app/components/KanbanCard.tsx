@@ -7,7 +7,7 @@ import { CardModal } from "./CardModal";
 import { DocPreview } from "./DocPreview";
 import { Id } from "@/convex/_generated/dataModel";
 
-type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
+type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type Priority = "low" | "medium" | "high";
 type Category = "Marketing" | "Product" | "Idea";
 type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
