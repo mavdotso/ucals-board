@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useEffect, useCallback } from "react";
+import { marked } from "marked";
 
 interface RichEditorProps {
   content: string;
@@ -11,7 +12,7 @@ interface RichEditorProps {
   placeholder?: string;
 }
 
-// Simple markdown serializer
+// HTML → markdown (for saving edits back)
 function toMarkdown(html: string): string {
   return html
     .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n")
@@ -28,20 +29,14 @@ function toMarkdown(html: string): string {
     .replace(/&gt;/g, ">");
 }
 
-// Simple markdown to HTML parser for display
+// Markdown → HTML using `marked` (handles tables, nested lists, code blocks etc.)
 function fromMarkdown(md: string): string {
   if (!md) return "";
-  return md
-    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/_(.+?)_/g, "<em>$1</em>")
-    .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>")
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/^(?!<[hul])(.+)$/gm, "<p>$1</p>");
+  try {
+    return marked.parse(md, { async: false }) as string;
+  } catch {
+    return `<p>${md}</p>`;
+  }
 }
 
 export function RichEditor({ content, onChange, readonly, placeholder }: RichEditorProps) {
@@ -58,45 +53,40 @@ export function RichEditor({ content, onChange, readonly, placeholder }: RichEdi
     immediatelyRender: false,
   });
 
+  const stableOnChange = useCallback((md: string) => onChange?.(md), [onChange]);
+
   useEffect(() => {
-    if (editor && content !== undefined) {
-      const current = toMarkdown(editor.getHTML());
-      if (current !== content) {
-        editor.commands.setContent(fromMarkdown(content));
-      }
+    if (!editor) return;
+    const current = toMarkdown(editor.getHTML());
+    if (current !== content) {
+      editor.commands.setContent(fromMarkdown(content));
     }
   }, [content]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {!readonly && editor && (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {!readonly && (
         <div style={{
           display: "flex", gap: "4px", padding: "8px 12px",
-          borderBottom: "1px solid var(--border-subtle)",
-          flexShrink: 0,
+          borderBottom: "1px solid var(--border-subtle)", flexShrink: 0, flexWrap: "wrap",
         }}>
           {[
-            { label: "B", cmd: () => editor.chain().focus().toggleBold().run(), active: editor.isActive("bold") },
-            { label: "I", cmd: () => editor.chain().focus().toggleItalic().run(), active: editor.isActive("italic") },
-            { label: "H1", cmd: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), active: editor.isActive("heading", { level: 1 }) },
-            { label: "H2", cmd: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), active: editor.isActive("heading", { level: 2 }) },
-            { label: "H3", cmd: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), active: editor.isActive("heading", { level: 3 }) },
-            { label: "• List", cmd: () => editor.chain().focus().toggleBulletList().run(), active: editor.isActive("bulletList") },
-            { label: "<>", cmd: () => editor.chain().focus().toggleCode().run(), active: editor.isActive("code") },
+            { label: "B", title: "Bold", action: () => editor?.chain().focus().toggleBold().run(), active: editor?.isActive("bold") },
+            { label: "I", title: "Italic", action: () => editor?.chain().focus().toggleItalic().run(), active: editor?.isActive("italic") },
+            { label: "H1", title: "Heading 1", action: () => editor?.chain().focus().toggleHeading({ level: 1 }).run(), active: editor?.isActive("heading", { level: 1 }) },
+            { label: "H2", title: "Heading 2", action: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(), active: editor?.isActive("heading", { level: 2 }) },
+            { label: "H3", title: "Heading 3", action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(), active: editor?.isActive("heading", { level: 3 }) },
+            { label: "•", title: "Bullet list", action: () => editor?.chain().focus().toggleBulletList().run(), active: editor?.isActive("bulletList") },
+            { label: "1.", title: "Ordered list", action: () => editor?.chain().focus().toggleOrderedList().run(), active: editor?.isActive("orderedList") },
+            { label: "</>", title: "Code block", action: () => editor?.chain().focus().toggleCodeBlock().run(), active: editor?.isActive("codeBlock") },
           ].map((btn) => (
-            <button
-              key={btn.label}
-              onMouseDown={(e) => { e.preventDefault(); btn.cmd(); }}
+            <button key={btn.label} title={btn.title} onMouseDown={(e) => { e.preventDefault(); btn.action(); }}
               style={{
                 background: btn.active ? "var(--bg-card-elevated)" : "none",
                 border: "1px solid " + (btn.active ? "var(--border-default)" : "transparent"),
-                borderRadius: "4px",
-                padding: "3px 8px",
-                fontSize: "12px",
-                fontWeight: btn.label === "B" ? 700 : 400,
-                fontStyle: btn.label === "I" ? "italic" : "normal",
-                color: btn.active ? "var(--text-primary)" : "var(--text-muted)",
-                cursor: "pointer",
+                borderRadius: "5px", padding: "3px 8px",
+                color: btn.active ? "var(--text-primary)" : "var(--text-secondary)",
+                fontSize: "12px", fontWeight: 600, cursor: "pointer",
               }}
             >
               {btn.label}
@@ -104,20 +94,11 @@ export function RichEditor({ content, onChange, readonly, placeholder }: RichEdi
           ))}
         </div>
       )}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-        <style>{`
-          .tiptap { outline: none; color: var(--text-primary); font-size: 14px; line-height: 1.7; }
-          .tiptap h1 { font-size: 22px; font-weight: 700; margin: 0 0 12px; color: var(--text-primary); }
-          .tiptap h2 { font-size: 17px; font-weight: 600; margin: 20px 0 8px; color: var(--text-primary); }
-          .tiptap h3 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: var(--text-secondary); }
-          .tiptap p { margin: 0 0 10px; }
-          .tiptap ul { padding-left: 20px; margin: 0 0 10px; }
-          .tiptap li { margin-bottom: 4px; }
-          .tiptap code { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 2px 6px; font-size: 12px; font-family: monospace; }
-          .tiptap strong { font-weight: 600; }
-          .tiptap .is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-muted); float: left; pointer-events: none; height: 0; }
-        `}</style>
-        <EditorContent editor={editor} className="tiptap" />
+      <div style={{ flex: 1, overflow: "auto", padding: "16px 20px" }}>
+        <EditorContent
+          editor={editor}
+          style={{ height: "100%", outline: "none" }}
+        />
       </div>
     </div>
   );

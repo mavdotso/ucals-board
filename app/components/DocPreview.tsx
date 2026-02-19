@@ -35,7 +35,7 @@ export function DocPreview({ docId, onClose }: { docId: Id<"docs">; onClose: () 
           </div>
           <div style={{ display: "flex", gap: "8px" }}>
             <button
-              onClick={() => { onClose(); router.push("/docs"); }}
+              onClick={() => { onClose(); router.push(`/docs?id=${docId}`); }}
               style={{
                 background: "none", border: "1px solid var(--border-default)",
                 borderRadius: "7px", padding: "5px 12px",
