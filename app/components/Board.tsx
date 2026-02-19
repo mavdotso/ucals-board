@@ -193,7 +193,7 @@ export function Board() {
       {/* Board */}
       <div style={{ flex: 1, overflowX: "auto", overflowY: "hidden", padding: "20px 24px" }}>
         <DragDropContext onDragEnd={onDragEnd}>
-          <div style={{ display: "flex", gap: "12px", height: "100%", alignItems: "flex-start" }}>
+          <div style={{ display: "flex", gap: "12px", height: "100%", alignItems: "stretch" }}>
             {COLUMNS.map((col) => (
               <KanbanColumn key={col} column={col} cards={cardsByColumn[col]} board={activeBoard} />
             ))}

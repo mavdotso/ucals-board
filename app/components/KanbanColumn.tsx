@@ -50,6 +50,7 @@ export function KanbanColumn({ column, cards, board }: { column: Column; cards: 
       flexDirection: "column",
       width: "260px",
       minWidth: "260px",
+      maxHeight: "100%",
       background: "var(--bg-secondary)",
       border: "1px solid var(--border-subtle)",
       borderRadius: "10px",
@@ -115,6 +116,7 @@ export function KanbanColumn({ column, cards, board }: { column: Column; cards: 
               flexDirection: "column",
               gap: "8px",
               minHeight: "80px",
+              overflowY: "auto",
               background: snapshot.isDraggingOver ? "rgba(255,255,255,0.02)" : "transparent",
               transition: "background 0.15s",
             }}
