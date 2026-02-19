@@ -69,6 +69,7 @@ export const save = mutation({
     id: v.id("docs"),
     title: v.optional(v.string()),
     content: v.optional(v.string()),
+    path: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;
