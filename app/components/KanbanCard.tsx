@@ -64,8 +64,10 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
         }),
       });
       const data = await res.json();
-      if (data.started) {
-        await addNote({ id: card._id, agent: card.assignee, content: `⚙ Working on task… Output will appear at \`${data.docPath}\`` });
+      if (data.queued) {
+        await addNote({ id: card._id, agent: card.assignee, content: `⚙ Job queued (${data.jobId?.slice(-6)})… runner will pick it up shortly.` });
+      } else if (data.error) {
+        await addNote({ id: card._id, agent: card.assignee, content: `❌ Failed to queue: ${data.error}` });
       }
     } finally {
       setRunning(false);
