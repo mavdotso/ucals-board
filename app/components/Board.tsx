@@ -6,6 +6,7 @@ import { KanbanColumn } from "./KanbanColumn";
 import { useState, useRef } from "react";
 import { CardModal } from "./CardModal";
 import { DocIntakeModal } from "./DocIntakeModal";
+import Link from "next/link";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
 type BoardType = "marketing" | "product";
@@ -99,6 +100,8 @@ export function Board() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>ucals</span>
+          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
           <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
           {/* Board tabs */}
           <div style={{ display: "flex", gap: "4px" }}>

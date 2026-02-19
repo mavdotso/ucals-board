@@ -29,8 +29,22 @@ export default defineSchema({
       content: v.string(),
       createdAt: v.number(),
     }))),
+    docPaths: v.optional(v.array(v.string())),
     order: v.number(),
   })
     .index("by_column", ["board", "column", "order"])
     .index("by_board", ["board", "order"]),
+
+  docs: defineTable({
+    path: v.string(),       // e.g. "maya/landing-page-copy.md"
+    title: v.string(),
+    content: v.string(),    // markdown content
+    agent: v.optional(v.string()),
+    board: v.union(v.literal("marketing"), v.literal("product")),
+    cardId: v.optional(v.id("cards")),
+    updatedAt: v.number(),
+  })
+    .index("by_path", ["path"])
+    .index("by_board", ["board", "updatedAt"])
+    .index("by_card", ["cardId"]),
 });

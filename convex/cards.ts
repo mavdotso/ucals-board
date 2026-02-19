@@ -56,6 +56,18 @@ export const update = mutation({
   },
 });
 
+export const attachDoc = mutation({
+  args: { id: v.id("cards"), docPath: v.string() },
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get(args.id);
+    if (!card) throw new Error("Card not found");
+    const paths = card.docPaths ?? [];
+    if (!paths.includes(args.docPath)) {
+      await ctx.db.patch(args.id, { docPaths: [...paths, args.docPath] });
+    }
+  },
+});
+
 export const addAgentNote = mutation({
   args: {
     id: v.id("cards"),
