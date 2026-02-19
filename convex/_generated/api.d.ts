@@ -10,6 +10,7 @@
 
 import type * as cards from "../cards.js";
 import type * as docs from "../docs.js";
+import type * as search from "../search.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   cards: typeof cards;
   docs: typeof docs;
+  search: typeof search;
 }>;
 
 /**

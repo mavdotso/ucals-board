@@ -1,10 +1,12 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { RichEditor } from "@/app/components/editor/RichEditor";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
+import { GlobalSearch } from "@/app/components/GlobalSearch";
 
 type Board = "marketing" | "product";
 
@@ -134,7 +136,11 @@ function TreeItem({
   );
 }
 
-export default function DocsPage() {
+export default function DocsPageWrapper() {
+  return <Suspense><DocsPage /></Suspense>;
+}
+
+function DocsPage() {
   const [board, setBoard] = useState<Board>("marketing");
   const [selectedId, setSelectedId] = useState<Id<"docs"> | null>(null);
   const [filterAgent, setFilterAgent] = useState<string | null>(null);
@@ -145,6 +151,12 @@ export default function DocsPage() {
   const [newPath, setNewPath] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const id = searchParams.get("id");
+    if (id) setSelectedId(id as Id<"docs">);
+  }, [searchParams]);
 
   const docs = useQuery(api.docs.list, { board }) ?? [];
   const selectedDoc = useQuery(api.docs.get, selectedId ? { id: selectedId } : "skip");
@@ -229,6 +241,7 @@ export default function DocsPage() {
               {saveStatus === "saved" ? "Saved" : saveStatus === "saving" ? "Saving…" : "●"}
             </span>
           )}
+          <GlobalSearch board={board} onSelectCard={() => {}} />
         </div>
       </header>
 

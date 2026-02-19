@@ -6,6 +6,7 @@ import { KanbanColumn } from "./KanbanColumn";
 import { useState, useRef } from "react";
 import { CardModal } from "./CardModal";
 import { DocIntakeModal } from "./DocIntakeModal";
+import { GlobalSearch } from "./GlobalSearch";
 import Link from "next/link";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
@@ -26,6 +27,7 @@ export function Board() {
   const [adding, setAdding] = useState(false);
   const [docDragging, setDocDragging] = useState(false);
   const [docIntake, setDocIntake] = useState<string | null>(null);
+  const [searchCardId, setSearchCardId] = useState<string | null>(null);
   const moveCard = useMutation(api.cards.moveCard);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -144,7 +146,8 @@ export function Board() {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <GlobalSearch board={activeBoard} onSelectCard={(id) => setSearchCardId(id as string)} />
           <button
             onClick={() => {
               const input = document.createElement("input");
@@ -203,6 +206,12 @@ export function Board() {
 
       {adding && <CardModal defaultColumn="inbox" board={activeBoard} onClose={() => setAdding(false)} />}
       {docIntake && <DocIntakeModal content={docIntake} board={activeBoard} onClose={() => setDocIntake(null)} />}
+      {searchCardId && (
+        <CardModal
+          card={cards.find(c => c._id === searchCardId) as any}
+          onClose={() => setSearchCardId(null)}
+        />
+      )}
     </div>
   );
 }
