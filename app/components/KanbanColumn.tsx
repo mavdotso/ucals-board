@@ -8,6 +8,8 @@ import { Id } from "@/convex/_generated/dataModel";
 type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
 type Priority = "low" | "medium" | "high";
 type Category = "Marketing" | "Product" | "Idea";
+type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
+type Board = "marketing" | "product";
 
 interface Card {
   _id: Id<"cards">;
@@ -17,6 +19,9 @@ interface Card {
   priority: Priority;
   category: Category;
   column: Column;
+  board: Board;
+  assignee?: Assignee;
+  agentNotes?: { agent: string; content: string; createdAt: number }[];
   order: number;
 }
 
@@ -36,7 +41,7 @@ const COLUMN_ACCENT: Record<Column, string> = {
   "junk": "#6B6A68",
 };
 
-export function KanbanColumn({ column, cards }: { column: Column; cards: Card[] }) {
+export function KanbanColumn({ column, cards, board }: { column: Column; cards: Card[]; board: Board }) {
   const [adding, setAdding] = useState(false);
 
   return (
@@ -122,7 +127,7 @@ export function KanbanColumn({ column, cards }: { column: Column; cards: Card[] 
         )}
       </Droppable>
 
-      {adding && <CardModal defaultColumn={column} onClose={() => setAdding(false)} />}
+      {adding && <CardModal defaultColumn={column} board={board} onClose={() => setAdding(false)} />}
     </div>
   );
 }

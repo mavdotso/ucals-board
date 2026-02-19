@@ -8,6 +8,7 @@ export default defineSchema({
     notes: v.optional(v.string()),
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     category: v.union(v.literal("Marketing"), v.literal("Product"), v.literal("Idea")),
+    board: v.union(v.literal("marketing"), v.literal("product")),
     column: v.union(
       v.literal("inbox"),
       v.literal("in-progress"),
@@ -15,6 +16,21 @@ export default defineSchema({
       v.literal("done"),
       v.literal("junk")
     ),
+    assignee: v.optional(v.union(
+      v.literal("vlad"),
+      v.literal("aria"),
+      v.literal("maya"),
+      v.literal("leo"),
+      v.literal("sage"),
+      v.literal("rex")
+    )),
+    agentNotes: v.optional(v.array(v.object({
+      agent: v.string(),
+      content: v.string(),
+      createdAt: v.number(),
+    }))),
     order: v.number(),
-  }).index("by_column", ["column", "order"]),
+  })
+    .index("by_column", ["board", "column", "order"])
+    .index("by_board", ["board", "order"]),
 });

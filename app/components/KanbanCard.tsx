@@ -7,6 +7,8 @@ import { Id } from "@/convex/_generated/dataModel";
 type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
 type Priority = "low" | "medium" | "high";
 type Category = "Marketing" | "Product" | "Idea";
+type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
+type Board = "marketing" | "product";
 
 interface Card {
   _id: Id<"cards">;
@@ -16,8 +18,20 @@ interface Card {
   priority: Priority;
   category: Category;
   column: Column;
+  board: Board;
+  assignee?: Assignee;
+  agentNotes?: { agent: string; content: string; createdAt: number }[];
   order: number;
 }
+
+const ASSIGNEE_COLORS: Record<Assignee, string> = {
+  vlad: "#F5F4F2",
+  aria: "#BD632F",
+  maya: "#A4243B",
+  leo: "#D8973C",
+  sage: "#5C8A6C",
+  rex: "#6B8A9C",
+};
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   low: "#5C8A6C",
@@ -84,18 +98,7 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              <span style={{
-                fontSize: "11px",
-                fontWeight: 500,
-                padding: "2px 8px",
-                borderRadius: "4px",
-                background: `${CATEGORY_COLORS[card.category]}22`,
-                color: CATEGORY_COLORS[card.category],
-                border: `1px solid ${CATEGORY_COLORS[card.category]}44`,
-              }}>
-                {card.category}
-              </span>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
               <span style={{
                 fontSize: "11px",
                 fontWeight: 500,
@@ -107,6 +110,24 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
               }}>
                 {card.priority}
               </span>
+              {card.assignee && (
+                <span style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  background: `${ASSIGNEE_COLORS[card.assignee]}22`,
+                  color: ASSIGNEE_COLORS[card.assignee],
+                  textTransform: "capitalize",
+                }}>
+                  {card.assignee}
+                </span>
+              )}
+              {(card.agentNotes?.length ?? 0) > 0 && (
+                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                  {card.agentNotes!.length} note{card.agentNotes!.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
           </div>
         )}

@@ -7,6 +7,8 @@ import { Id } from "@/convex/_generated/dataModel";
 type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
 type Priority = "low" | "medium" | "high";
 type Category = "Marketing" | "Product" | "Idea";
+type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
+type Board = "marketing" | "product";
 
 interface Card {
   _id: Id<"cards">;
@@ -16,14 +18,26 @@ interface Card {
   priority: Priority;
   category: Category;
   column: Column;
+  board: Board;
+  assignee?: Assignee;
   order: number;
 }
 
 interface CardModalProps {
   card?: Card;
   defaultColumn?: Column;
+  board?: Board;
   onClose: () => void;
 }
+
+const ASSIGNEES: { id: Assignee; label: string; role: string; color: string }[] = [
+  { id: "vlad", label: "Vlad", role: "Owner", color: "#F5F4F2" },
+  { id: "aria", label: "Aria", role: "Manager", color: "#BD632F" },
+  { id: "maya", label: "Maya", role: "Copy", color: "#A4243B" },
+  { id: "leo", label: "Leo", role: "Social", color: "#D8973C" },
+  { id: "sage", label: "Sage", role: "SEO/GEO", color: "#5C8A6C" },
+  { id: "rex", label: "Rex", role: "Paid Ads", color: "#6B8A9C" },
+];
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   low: "#5C8A6C",
@@ -37,7 +51,7 @@ const CATEGORY_COLORS: Record<Category, string> = {
   Idea: "#6B6A68",
 };
 
-export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalProps) {
+export function CardModal({ card, defaultColumn = "inbox", board, onClose }: CardModalProps) {
   const create = useMutation(api.cards.create);
   const update = useMutation(api.cards.update);
   const remove = useMutation(api.cards.remove);
@@ -46,17 +60,19 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
   const [description, setDescription] = useState(card?.description ?? "");
   const [notes, setNotes] = useState(card?.notes ?? "");
   const [priority, setPriority] = useState<Priority>(card?.priority ?? "medium");
-  const [category, setCategory] = useState<Category>(card?.category ?? "Product");
+  const [category, setCategory] = useState<Category>(card?.category ?? "Marketing");
   const [column, setColumn] = useState<Column>(card?.column ?? defaultColumn);
+  const [assignee, setAssignee] = useState<Assignee | undefined>(card?.assignee);
   const [saving, setSaving] = useState(false);
+  const resolvedBoard: Board = board ?? card?.board ?? "marketing";
 
   async function handleSave() {
     if (!title.trim()) return;
     setSaving(true);
     if (card) {
-      await update({ id: card._id, title, description, notes, priority, category, column });
+      await update({ id: card._id, title, description, notes, priority, category, column, assignee });
     } else {
-      await create({ title, description, notes, priority, category, column });
+      await create({ title, description, notes, priority, category, column, assignee, board: resolvedBoard });
     }
     onClose();
   }
@@ -205,6 +221,31 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Assignee */}
+        <div>
+          <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assign to</label>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {ASSIGNEES.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setAssignee(assignee === a.id ? undefined : a.id)}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  border: assignee === a.id ? `1px solid ${a.color}` : "1px solid var(--border-default)",
+                  background: assignee === a.id ? `${a.color}22` : "var(--bg-card)",
+                  color: assignee === a.id ? a.color : "var(--text-muted)",
+                }}
+              >
+                {a.label} <span style={{ opacity: 0.6, fontSize: "10px" }}>{a.role}</span>
+              </button>
+            ))}
           </div>
         </div>
 
