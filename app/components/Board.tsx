@@ -111,6 +111,8 @@ export function Board() {
           <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
           <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
           <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
+          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
           {/* Board tabs */}
           <div style={{ display: "flex", gap: "4px" }}>
             {(["marketing", "product"] as BoardType[]).map((b) => (

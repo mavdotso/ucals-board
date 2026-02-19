@@ -50,6 +50,36 @@ export default defineSchema({
     error: v.optional(v.string()),
   }).index("by_status", ["status", "createdAt"]),
 
+  tools: defineTable({
+    name: v.string(),
+    category: v.union(
+      v.literal("analytics"),
+      v.literal("marketing"),
+      v.literal("seo"),
+      v.literal("email"),
+      v.literal("social"),
+      v.literal("dev"),
+      v.literal("design"),
+      v.literal("ai"),
+      v.literal("other")
+    ),
+    status: v.union(
+      v.literal("active"),
+      v.literal("trial"),
+      v.literal("needs-setup"),
+      v.literal("cancelled")
+    ),
+    url: v.optional(v.string()),
+    cost: v.optional(v.string()),         // e.g. "$29/mo" or "free"
+    billingCycle: v.optional(v.union(v.literal("monthly"), v.literal("annual"), v.literal("free"), v.literal("one-time"))),
+    accessNotes: v.optional(v.string()),  // who has access, credentials location
+    notes: v.optional(v.string()),
+    addedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_category", ["category"]),
+
   docs: defineTable({
     path: v.string(),       // e.g. "maya/landing-page-copy.md"
     title: v.string(),
