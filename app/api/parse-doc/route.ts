@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,13 +9,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: "OPENROUTER_API_KEY not configured" }, { status: 500 });
     }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    // Strip HTML, collapse whitespace, truncate
     const text = content
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -29,12 +25,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Document appears empty after parsing" }, { status: 400 });
     }
 
-    const response = await client.messages.create({
-      model: "claude-opus-4-5",
-      max_tokens: 2000,
-      messages: [{
-        role: "user",
-        content: `You are Aria, UCals marketing manager. Parse this document and extract all actionable tasks.
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://ucals-board.vercel.app",
+        "X-Title": "UCals Board",
+      },
+      body: JSON.stringify({
+        model: "anthropic/claude-sonnet-4-5",
+        max_tokens: 2000,
+        messages: [{
+          role: "user",
+          content: `You are Aria, UCals marketing manager. Parse this document and extract all actionable tasks.
 
 For each task, output JSON with these exact fields:
 - title: short action-oriented title (max 60 chars)
@@ -47,15 +51,20 @@ Return ONLY a valid JSON array, no other text, no markdown code fences.
 
 Document:
 ${text}`,
-      }],
+        }],
+      }),
     });
 
-    const raw = (response.content[0] as Anthropic.TextBlock).text.trim();
+    if (!response.ok) {
+      const err = await response.text();
+      return NextResponse.json({ error: `OpenRouter error: ${err.slice(0, 200)}` }, { status: 500 });
+    }
 
-    // Strip markdown code fences if present
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-
     const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+
     if (!jsonMatch) {
       return NextResponse.json({ error: "Could not extract JSON from response", raw: cleaned.slice(0, 200) }, { status: 500 });
     }
@@ -65,9 +74,6 @@ ${text}`,
 
   } catch (err: any) {
     console.error("parse-doc error:", err);
-    return NextResponse.json(
-      { error: err?.message ?? "Unexpected error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message ?? "Unexpected error" }, { status: 500 });
   }
 }
