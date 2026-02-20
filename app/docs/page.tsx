@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -12,7 +12,7 @@ type Board = "marketing" | "product";
 
 const AGENT_COLORS: Record<string, string> = {
   aria: "#BD632F", maya: "#A4243B", leo: "#D8973C",
-  sage: "#5C8A6C", rex: "#6B8A9C", vlad: "#F5F4F2", anya: "#8B7CF6",
+  sage: "#5C8A6C", rex: "#6B8A9C", anya: "#8B7CF6", vlad: "#A5A4A0",
 };
 
 const AGENTS = ["aria", "maya", "leo", "sage", "rex", "anya", "vlad"];
@@ -21,120 +21,10 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-type TreeNode = {
-  name: string;
-  path: string;
-  isFolder: boolean;
-  children: TreeNode[];
-  docId?: Id<"docs">;
-  agent?: string;
-  updatedAt?: number;
-};
-
-function buildTree(docs: { _id: Id<"docs">; path: string; title: string; agent?: string; updatedAt: number }[]): TreeNode[] {
-  const root: TreeNode[] = [];
-  const folderMap: Record<string, TreeNode> = {};
-
-  for (const doc of docs) {
-    const parts = doc.path.split("/");
-    let current = root;
-    let fullPath = "";
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      fullPath = fullPath ? `${fullPath}/${parts[i]}` : parts[i];
-      if (!folderMap[fullPath]) {
-        const folder: TreeNode = { name: parts[i], path: fullPath, isFolder: true, children: [], agent: parts[0] };
-        folderMap[fullPath] = folder;
-        current.push(folder);
-      }
-      current = folderMap[fullPath].children;
-    }
-
-    current.push({
-      name: doc.title, path: doc.path, isFolder: false, children: [],
-      docId: doc._id, agent: doc.agent, updatedAt: doc.updatedAt,
-    });
-  }
-
-  function sort(nodes: TreeNode[]) {
-    nodes.sort((a, b) => {
-      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-    nodes.forEach(n => sort(n.children));
-  }
-  sort(root);
-  return root;
-}
-
-function TreeItem({ node, depth, selectedId, onSelect, collapsed, onToggle }: {
-  node: TreeNode; depth: number; selectedId: Id<"docs"> | null;
-  onSelect: (id: Id<"docs">) => void;
-  collapsed: Record<string, boolean>;
-  onToggle: (path: string) => void;
-}) {
-  const isCollapsed = collapsed[node.path];
-  const agentColor = AGENT_COLORS[node.agent ?? ""] ?? "var(--text-muted)";
-
-  if (node.isFolder) {
-    return (
-      <div>
-        <div onClick={() => onToggle(node.path)} style={{
-          padding: `5px 12px 5px ${12 + depth * 14}px`,
-          cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", userSelect: "none",
-        }}>
-          <span style={{ fontSize: "9px", color: "var(--text-muted)", width: "10px", flexShrink: 0 }}>
-            {isCollapsed ? "▶" : "▼"}
-          </span>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: agentColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            {node.name}
-          </span>
-        </div>
-        {!isCollapsed && node.children.map(child => (
-          <TreeItem key={child.path} node={child} depth={depth + 1}
-            selectedId={selectedId} onSelect={onSelect} collapsed={collapsed} onToggle={onToggle} />
-        ))}
-      </div>
-    );
-  }
-
-  const isSelected = node.docId === selectedId;
-  return (
-    <div onClick={() => node.docId && onSelect(node.docId)} style={{
-      padding: `5px 12px 5px ${22 + depth * 14}px`,
-      cursor: "pointer",
-      background: isSelected ? "var(--bg-card-elevated)" : "transparent",
-      borderLeft: `2px solid ${isSelected ? agentColor : "transparent"}`,
-      transition: "background 0.1s",
-    }}
-      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-card)"; }}
-      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
-    >
-      <div style={{ fontSize: "12px", color: isSelected ? "var(--text-primary)" : "var(--text-secondary)", lineHeight: 1.4, fontWeight: isSelected ? 500 : 400 }}>
-        {node.name}
-      </div>
-      {node.updatedAt && (
-        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>{formatDate(node.updatedAt)}</div>
-      )}
-    </div>
-  );
-}
-
 function MarkdownView({ content }: { content: string }) {
   const html = marked.parse(content, { async: false }) as string;
   return (
-    <div
-      className="markdown-body"
-      dangerouslySetInnerHTML={{ __html: html }}
-      style={{
-        padding: "40px 60px",
-        maxWidth: "800px",
-        margin: "0 auto",
-        color: "var(--text-primary)",
-        fontSize: "14px",
-        lineHeight: "1.7",
-      }}
-    />
+    <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />
   );
 }
 
@@ -146,12 +36,12 @@ function DocsPage() {
   const [board, setBoard] = useState<Board>("marketing");
   const [selectedId, setSelectedId] = useState<Id<"docs"> | null>(null);
   const [filterAgent, setFilterAgent] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
-  const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [search, setSearch] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const searchParams = useSearchParams();
 
@@ -160,7 +50,6 @@ function DocsPage() {
     if (id) setSelectedId(id as Id<"docs">);
   }, [searchParams]);
 
-  // Reset editing mode when switching docs
   useEffect(() => { setEditing(false); }, [selectedId]);
 
   const docs = useQuery(api.docs.list, { board }) ?? [];
@@ -169,12 +58,22 @@ function DocsPage() {
   const save = useMutation(api.docs.save);
   const remove = useMutation(api.docs.remove);
 
-  const filteredDocs = filterAgent ? docs.filter(d => d.agent === filterAgent) : docs;
-  const tree = buildTree(filteredDocs);
+  // Filter + group by agent
+  const filtered = docs.filter(d => {
+    if (filterAgent && d.agent !== filterAgent) return false;
+    if (search && !d.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
-  function toggleCollapse(path: string) {
-    setCollapsed(prev => ({ ...prev, [path]: !prev[path] }));
-  }
+  // Group by agent
+  const grouped = AGENTS.reduce((acc, agent) => {
+    const agentDocs = filtered.filter(d => d.agent === agent);
+    if (agentDocs.length) acc[agent] = agentDocs;
+    return acc;
+  }, {} as Record<string, typeof docs>);
+
+  // Ungrouped docs (no agent or unknown agent)
+  const ungrouped = filtered.filter(d => !d.agent || !AGENTS.includes(d.agent));
 
   async function createDoc() {
     if (!newTitle.trim()) return;
@@ -214,7 +113,7 @@ function DocsPage() {
       <header style={{
         borderBottom: "1px solid var(--border-subtle)", padding: "0 20px",
         height: "52px", display: "flex", alignItems: "center",
-        justifyContent: "space-between", background: "var(--bg-secondary)", flexShrink: 0,
+        justifyContent: "space-between", background: "var(--bg-secondary)", flexShrink: 0, gap: "16px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
@@ -223,21 +122,20 @@ function DocsPage() {
           <span style={{ color: "var(--border-default)" }}>/</span>
           <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>docs</span>
           <span style={{ color: "var(--border-default)" }}>/</span>
-          {(["marketing", "product"] as Board[]).map((b) => (
-            <button key={b} onClick={() => { setBoard(b); setSelectedId(null); }}
-              style={{
-                background: board === b ? "var(--bg-card-elevated)" : "none",
-                border: board === b ? "1px solid var(--border-default)" : "1px solid transparent",
-                borderRadius: "6px", padding: "3px 10px",
-                color: board === b ? "var(--text-primary)" : "var(--text-muted)",
-                fontSize: "12px", fontWeight: board === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
-              }}>{b}</button>
+          {(["marketing", "product"] as Board[]).map(b => (
+            <button key={b} onClick={() => { setBoard(b); setSelectedId(null); }} style={{
+              background: board === b ? "var(--bg-card-elevated)" : "none",
+              border: board === b ? "1px solid var(--border-default)" : "1px solid transparent",
+              borderRadius: "6px", padding: "3px 10px",
+              color: board === b ? "var(--text-primary)" : "var(--text-muted)",
+              fontSize: "12px", fontWeight: board === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
+            }}>{b}</button>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {selectedDoc && saveStatus !== "saved" && (
             <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-              {saveStatus === "saving" ? "Saving…" : "Unsaved"}
+              {saveStatus === "saving" ? "Saving…" : "●"}
             </span>
           )}
           {selectedDoc && (
@@ -246,28 +144,56 @@ function DocsPage() {
               border: `1px solid ${editing ? "var(--border-default)" : "var(--border-subtle)"}`,
               borderRadius: "6px", padding: "4px 12px", fontSize: "12px",
               color: editing ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
-            }}>
-              {editing ? "Preview" : "Edit"}
-            </button>
+            }}>{editing ? "Preview" : "Edit"}</button>
           )}
         </div>
       </header>
 
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Sidebar */}
+        {/* Left sidebar — doc list */}
         <div style={{
-          width: "260px", minWidth: "260px", borderRight: "1px solid var(--border-subtle)",
+          width: "280px", minWidth: "280px", borderRight: "1px solid var(--border-subtle)",
           background: "var(--bg-secondary)", display: "flex", flexDirection: "column", overflow: "hidden",
         }}>
-          {/* Agent filter */}
-          <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-subtle)", display: "flex", gap: "4px", flexWrap: "wrap" }}>
+          {/* Search + new doc */}
+          <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search docs…"
+              style={{
+                background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
+                borderRadius: "6px", padding: "5px 9px", color: "var(--text-primary)", fontSize: "12px", outline: "none",
+              }}
+            />
+            <div style={{ display: "flex", gap: "6px" }}>
+              <input
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
+                placeholder="New document…"
+                style={{
+                  flex: 1, background: "var(--bg-card)", border: "1px solid var(--border-default)",
+                  borderRadius: "6px", padding: "5px 9px", color: "var(--text-primary)", fontSize: "12px", outline: "none",
+                }}
+              />
+              <button onClick={createDoc} disabled={!newTitle.trim() || creating} style={{
+                background: "var(--text-primary)", border: "none", borderRadius: "6px",
+                padding: "5px 10px", color: "var(--bg-app)", fontSize: "14px",
+                cursor: newTitle.trim() ? "pointer" : "not-allowed", opacity: newTitle.trim() ? 1 : 0.4,
+              }}>+</button>
+            </div>
+          </div>
+
+          {/* Agent filter tabs */}
+          <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-subtle)", display: "flex", gap: "4px", flexWrap: "wrap" }}>
             <button onClick={() => setFilterAgent(null)} style={{
               background: filterAgent === null ? "var(--bg-card-elevated)" : "none",
               border: filterAgent === null ? "1px solid var(--border-default)" : "1px solid transparent",
               borderRadius: "5px", padding: "2px 8px", fontSize: "11px",
               color: filterAgent === null ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
             }}>All</button>
-            {AGENTS.map(a => (
+            {AGENTS.filter(a => docs.some(d => d.agent === a)).map(a => (
               <button key={a} onClick={() => setFilterAgent(filterAgent === a ? null : a)} style={{
                 background: filterAgent === a ? `${AGENT_COLORS[a]}22` : "none",
                 border: filterAgent === a ? `1px solid ${AGENT_COLORS[a]}55` : "1px solid transparent",
@@ -277,59 +203,93 @@ function DocsPage() {
             ))}
           </div>
 
-          {/* New doc */}
-          <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-subtle)", display: "flex", gap: "6px" }}>
-            <input
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
-              placeholder="New document…"
-              style={{
-                flex: 1, background: "var(--bg-card)", border: "1px solid var(--border-default)",
-                borderRadius: "6px", padding: "5px 8px", color: "var(--text-primary)", fontSize: "12px", outline: "none",
-              }}
-            />
-            <button onClick={createDoc} disabled={!newTitle.trim() || creating} style={{
-              background: "var(--text-primary)", border: "none", borderRadius: "6px",
-              padding: "5px 10px", color: "var(--bg-app)", fontSize: "14px",
-              cursor: newTitle.trim() ? "pointer" : "not-allowed", opacity: newTitle.trim() ? 1 : 0.4,
-            }}>+</button>
-          </div>
-
-          {/* File tree */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-            {filteredDocs.length === 0 ? (
+          {/* Doc list — grouped by agent */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {filtered.length === 0 ? (
               <div style={{ padding: "24px 16px", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
-                {docs.length === 0 ? "No documents yet" : "No docs for this agent"}
+                {docs.length === 0 ? "No documents yet" : "No results"}
               </div>
-            ) : tree.map(node => (
-              <TreeItem key={node.path} node={node} depth={0}
-                selectedId={selectedId} onSelect={setSelectedId}
-                collapsed={collapsed} onToggle={toggleCollapse} />
-            ))}
+            ) : (
+              <>
+                {Object.entries(grouped).map(([agent, agentDocs]) => (
+                  <div key={agent}>
+                    {/* Agent section header */}
+                    <div style={{
+                      padding: "10px 14px 4px",
+                      fontSize: "10px", fontWeight: 700,
+                      color: AGENT_COLORS[agent] ?? "var(--text-muted)",
+                      textTransform: "uppercase", letterSpacing: "0.08em",
+                      position: "sticky", top: 0,
+                      background: "var(--bg-secondary)",
+                    }}>
+                      {agent} · {agentDocs.length}
+                    </div>
+                    {agentDocs.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => {
+                      const isSelected = doc._id === selectedId;
+                      return (
+                        <div key={doc._id} onClick={() => setSelectedId(doc._id)} style={{
+                          padding: "7px 14px",
+                          cursor: "pointer",
+                          background: isSelected ? "var(--bg-card-elevated)" : "transparent",
+                          borderLeft: `2px solid ${isSelected ? (AGENT_COLORS[agent] ?? "var(--border-default)") : "transparent"}`,
+                          transition: "background 0.1s",
+                        }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-card)"; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          <div style={{ fontSize: "12px", color: isSelected ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isSelected ? 500 : 400, lineHeight: 1.35 }}>
+                            {doc.title}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                            {formatDate(doc.updatedAt)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                {ungrouped.length > 0 && (
+                  <div>
+                    <div style={{ padding: "10px 14px 4px", fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      other · {ungrouped.length}
+                    </div>
+                    {ungrouped.map(doc => {
+                      const isSelected = doc._id === selectedId;
+                      return (
+                        <div key={doc._id} onClick={() => setSelectedId(doc._id)} style={{
+                          padding: "7px 14px", cursor: "pointer",
+                          background: isSelected ? "var(--bg-card-elevated)" : "transparent",
+                          borderLeft: `2px solid ${isSelected ? "var(--border-default)" : "transparent"}`,
+                        }}>
+                          <div style={{ fontSize: "12px", color: isSelected ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isSelected ? 500 : 400 }}>
+                            {doc.title}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{formatDate(doc.updatedAt)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Doc count */}
-          {docs.length > 0 && (
-            <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border-subtle)", fontSize: "10px", color: "var(--text-muted)" }}>
-              {filteredDocs.length} doc{filteredDocs.length !== 1 ? "s" : ""}
-              {filterAgent ? ` by ${filterAgent}` : ""}
-            </div>
-          )}
+          <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border-subtle)", fontSize: "10px", color: "var(--text-muted)" }}>
+            {filtered.length} of {docs.length} docs
+          </div>
         </div>
 
-        {/* Main content panel */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-app)" }}>
+        {/* Right panel — document content */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {selectedDoc ? (
             <>
-              {/* Doc header */}
+              {/* Doc title bar */}
               <div style={{
-                padding: "16px 60px 12px",
+                padding: "20px 56px 14px",
                 borderBottom: "1px solid var(--border-subtle)",
-                background: "var(--bg-app)",
                 flexShrink: 0,
               }}>
-                <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                <div style={{ maxWidth: "780px", margin: "0 auto" }}>
                   {editingTitle ? (
                     <input
                       autoFocus
@@ -340,43 +300,34 @@ function DocsPage() {
                         if (e.key === "Escape") setEditingTitle(false);
                       }}
                       style={{
-                        fontSize: "22px", fontWeight: 700, background: "none",
-                        border: "none", borderBottom: "1px solid var(--border-default)",
+                        fontSize: "24px", fontWeight: 700, background: "none", border: "none",
+                        borderBottom: "1px solid var(--border-default)",
                         color: "var(--text-primary)", outline: "none", width: "100%", padding: "0",
                       }}
                     />
                   ) : (
                     <h1 onClick={() => setEditingTitle(true)} style={{
-                      fontSize: "22px", fontWeight: 700, color: "var(--text-primary)",
+                      fontSize: "24px", fontWeight: 700, color: "var(--text-primary)",
                       margin: 0, cursor: "text", lineHeight: 1.3,
                     }}>
                       {selectedDoc.title}
                     </h1>
                   )}
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "8px" }}>
                     {selectedDoc.agent && (
-                      <span style={{
-                        fontSize: "11px", fontWeight: 600, color: agentColor,
-                        textTransform: "capitalize",
-                      }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: agentColor, textTransform: "capitalize" }}>
                         {selectedDoc.agent}
                       </span>
                     )}
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                      {formatDate(selectedDoc.updatedAt)}
-                    </span>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "monospace" }}>
-                      {selectedDoc.path}
-                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(selectedDoc.updatedAt)}</span>
                     <button onClick={async () => {
                       if (confirm(`Delete "${selectedDoc.title}"?`)) {
                         await remove({ id: selectedDoc._id });
                         setSelectedId(null);
                       }
-                    }} style={{
-                      marginLeft: "auto", background: "none", border: "none",
-                      color: "var(--text-muted)", cursor: "pointer", fontSize: "11px",
-                    }}>Delete</button>
+                    }} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "11px" }}>
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -386,14 +337,16 @@ function DocsPage() {
                 {editing ? (
                   <RichEditor content={selectedDoc.content} onChange={handleChange} placeholder="Start writing…" />
                 ) : (
-                  <MarkdownView content={selectedDoc.content} />
+                  <div style={{ padding: "32px 56px", maxWidth: "780px", margin: "0 auto" }}>
+                    <MarkdownView content={selectedDoc.content} />
+                  </div>
                 )}
               </div>
             </>
           ) : (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", gap: "8px" }}>
               <div style={{ fontSize: "28px" }}>📄</div>
-              <div style={{ fontSize: "14px" }}>Select a document from the sidebar</div>
+              <div style={{ fontSize: "14px" }}>Select a document</div>
               <div style={{ fontSize: "12px" }}>{docs.length} document{docs.length !== 1 ? "s" : ""} in {board}</div>
             </div>
           )}
@@ -401,24 +354,27 @@ function DocsPage() {
       </div>
 
       <style>{`
-        .markdown-body h1 { font-size: 1.8em; font-weight: 700; margin: 0 0 16px; color: var(--text-primary); line-height: 1.3; }
-        .markdown-body h2 { font-size: 1.4em; font-weight: 600; margin: 32px 0 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px; }
-        .markdown-body h3 { font-size: 1.1em; font-weight: 600; margin: 24px 0 8px; color: var(--text-primary); }
-        .markdown-body p { margin: 0 0 14px; color: var(--text-secondary); }
-        .markdown-body ul, .markdown-body ol { margin: 0 0 14px; padding-left: 24px; color: var(--text-secondary); }
-        .markdown-body li { margin-bottom: 4px; }
-        .markdown-body li > ul, .markdown-body li > ol { margin-bottom: 0; margin-top: 4px; }
+        .markdown-body { color: var(--text-secondary); font-size: 14px; line-height: 1.75; }
+        .markdown-body h1 { font-size: 1.75em; font-weight: 700; margin: 0 0 20px; color: var(--text-primary); }
+        .markdown-body h2 { font-size: 1.3em; font-weight: 600; margin: 36px 0 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px; }
+        .markdown-body h3 { font-size: 1.1em; font-weight: 600; margin: 28px 0 8px; color: var(--text-primary); }
+        .markdown-body h4 { font-size: 1em; font-weight: 600; margin: 20px 0 6px; color: var(--text-primary); }
+        .markdown-body p { margin: 0 0 14px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 14px; padding-left: 22px; }
+        .markdown-body li { margin-bottom: 5px; }
+        .markdown-body li > ul, .markdown-body li > ol { margin-top: 4px; margin-bottom: 0; }
         .markdown-body code { background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 1px 5px; font-size: 12px; font-family: monospace; color: var(--text-primary); }
         .markdown-body pre { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 0 0 16px; }
-        .markdown-body pre code { background: none; border: none; padding: 0; font-size: 13px; }
+        .markdown-body pre code { background: none; border: none; padding: 0; font-size: 13px; line-height: 1.6; }
         .markdown-body blockquote { border-left: 3px solid var(--border-default); margin: 0 0 14px; padding: 4px 16px; color: var(--text-muted); }
         .markdown-body table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 13px; }
         .markdown-body th { background: var(--bg-card); border: 1px solid var(--border-subtle); padding: 8px 12px; text-align: left; font-weight: 600; color: var(--text-primary); }
-        .markdown-body td { border: 1px solid var(--border-subtle); padding: 8px 12px; color: var(--text-secondary); }
+        .markdown-body td { border: 1px solid var(--border-subtle); padding: 8px 12px; }
         .markdown-body tr:nth-child(even) td { background: var(--bg-card); }
         .markdown-body a { color: var(--text-primary); text-decoration: underline; }
-        .markdown-body hr { border: none; border-top: 1px solid var(--border-subtle); margin: 24px 0; }
+        .markdown-body hr { border: none; border-top: 1px solid var(--border-subtle); margin: 28px 0; }
         .markdown-body strong { color: var(--text-primary); font-weight: 600; }
+        .markdown-body em { font-style: italic; }
       `}</style>
     </div>
   );
