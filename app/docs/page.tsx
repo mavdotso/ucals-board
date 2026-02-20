@@ -16,6 +16,61 @@ const AGENT_COLORS: Record<string, string> = {
 };
 const AGENTS = ["aria", "maya", "leo", "sage", "rex", "anya", "vlad"];
 
+const CATEGORIES = [
+  { id: "Copy",     icon: "📣", label: "Copy",     desc: "Landing pages, emails, CTAs, onboarding" },
+  { id: "SEO",      icon: "🔍", label: "SEO",      desc: "Articles, keywords, backlinks, optimization" },
+  { id: "Social",   icon: "📱", label: "Social",   desc: "Twitter, LinkedIn, build-in-public" },
+  { id: "Launch",   icon: "🚀", label: "Launch",   desc: "Product Hunt, press, media kit" },
+  { id: "Strategy", icon: "📊", label: "Strategy", desc: "Competitive, positioning, revenue model" },
+  { id: "Product",  icon: "🛠", label: "Product",  desc: "In-app copy, A/B tests, app store" },
+  { id: "Ops",      icon: "📁", label: "Ops",      desc: "Checklists, roadmaps, action items" },
+] as const;
+
+type CategoryId = typeof CATEGORIES[number]["id"];
+
+function getCategory(title: string, path: string): CategoryId {
+  const t = title.toLowerCase();
+  if (
+    t.includes("landing page") || t.includes("email") || t.includes("onboarding") ||
+    t.includes("pricing page") || t.includes("cancellation flow") || t.includes("referral") ||
+    t.includes("about page") || t.includes("trial") || t.includes("win-back") ||
+    t.includes("waitlist") || t.includes("cta") || t.includes("copy rewrite") ||
+    t.includes("churn reduction") || t.includes("founder variant") || t.includes("merged v")
+  ) return "Copy";
+  if (
+    t.includes("seo") || t.includes("backlink") || t.includes("article") ||
+    t.includes("alternative") || t.includes("calendar app") || t.includes("ai calendar") ||
+    t.includes("time blocking") || t.includes("comparison") || t.includes("organic") ||
+    t.includes("keyword") || t.includes("publishing cadence") || t.includes("llms") ||
+    t.includes("save 5 hours") || t.includes("productivity") || t.includes("adhd") ||
+    t.includes("organize") || t.includes("best calendar") || t.includes("semantic")
+  ) return "SEO";
+  if (
+    t.includes("twitter") || t.includes("linkedin") || t.includes("social") ||
+    t.includes("build in public") || t.includes("community") || t.includes("indie hackers") ||
+    t.includes("tweet") || t.includes("reddit") || t.includes("monitoring playbook")
+  ) return "Social";
+  if (
+    t.includes("product hunt") || t.includes("press") || t.includes("media kit") ||
+    t.includes("launch post") || t.includes("launch strategy") || t.includes("launch checklist") ||
+    t.includes("launch day") || t.includes("debrief")
+  ) return "Launch";
+  if (
+    t.includes("persona") || t.includes("competitive") || t.includes("positioning") ||
+    t.includes("revenue model") || t.includes("cac") || t.includes("ltv") ||
+    t.includes("youtube ads") || t.includes("pricing strategy") || t.includes("icp") ||
+    t.includes("twelve-month") || t.includes("twelve month") || t.includes("market") ||
+    t.includes("landing page a/b") || t.includes("ab test plan") || t.includes("activation")
+  ) return "Strategy";
+  if (
+    t.includes("cheat sheet") || t.includes("in-app") || t.includes("app store") ||
+    t.includes("cancellation flow") || t.includes("website implementation") ||
+    t.includes("natural language") || t.includes("feature") || t.includes("ui copy") ||
+    t.includes("notification")
+  ) return "Product";
+  return "Ops";
+}
+
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
@@ -25,53 +80,18 @@ function MarkdownView({ content }: { content: string }) {
   return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-// Given all docs and a current folder path ("" = root), return:
-// - folders: unique top-level segments at this level
-// - docs: docs directly in this folder (not nested deeper)
-function getContents(
-  docs: { _id: Id<"docs">; path: string; title: string; agent?: string; updatedAt: number }[],
-  currentFolder: string
-) {
-  const prefix = currentFolder ? currentFolder + "/" : "";
-  const inFolder = docs.filter(d => d.path.startsWith(prefix));
-
-  const folderSet = new Set<string>();
-  const directDocs: typeof docs = [];
-
-  for (const doc of inFolder) {
-    const rest = doc.path.slice(prefix.length);
-    const parts = rest.split("/");
-    if (parts.length === 1) {
-      directDocs.push(doc);
-    } else {
-      folderSet.add(parts[0]);
-    }
-  }
-
-  return { folders: Array.from(folderSet).sort(), directDocs };
-}
-
-// Breadcrumb segments from a folder path
-function breadcrumbs(folder: string): { label: string; path: string }[] {
-  if (!folder) return [];
-  const parts = folder.split("/");
-  return parts.map((p, i) => ({ label: p, path: parts.slice(0, i + 1).join("/") }));
-}
-
 export default function DocsPageWrapper() {
   return <Suspense><DocsPage /></Suspense>;
 }
 
 function DocsPage() {
   const [board, setBoard] = useState<Board>("marketing");
-  const [currentFolder, setCurrentFolder] = useState(""); // "" = root
+  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [openId, setOpenId] = useState<Id<"docs"> | null>(null);
   const [editing, setEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [editingTitle, setEditingTitle] = useState(false);
   const [search, setSearch] = useState("");
-  const [newFolderName, setNewFolderName] = useState("");
-  const [showNewFolder, setShowNewFolder] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -90,38 +110,27 @@ function DocsPage() {
   const save = useMutation(api.docs.save);
   const remove = useMutation(api.docs.remove);
 
-  // Search overrides folder navigation
   const isSearching = search.length > 0;
   const searchResults = isSearching
     ? docs.filter(d => d.title.toLowerCase().includes(search.toLowerCase()))
     : [];
 
-  const { folders, directDocs } = getContents(docs, currentFolder);
-  const crumbs = breadcrumbs(currentFolder);
+  const docsWithCategory = docs.map(d => ({ ...d, category: getCategory(d.title, d.path) }));
+  const visibleDocs = activeCategory
+    ? docsWithCategory.filter(d => d.category === activeCategory)
+    : docsWithCategory;
 
   async function createDoc() {
     if (!newDocTitle.trim()) return;
     setCreating(true);
     const slug = newDocTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
     const date = new Date().toISOString().slice(0, 10);
-    const folder = currentFolder || "vlad";
-    const path = `${folder}/${date}-${slug}.md`;
-    const agent = AGENTS.find(a => path.startsWith(a + "/")) ?? "vlad";
-    const id = await upsert({ path, title: newDocTitle, content: `# ${newDocTitle}\n\n`, agent, board });
+    const path = `vlad/${date}-${slug}.md`;
+    const id = await upsert({ path, title: newDocTitle, content: `# ${newDocTitle}\n\n`, agent: "vlad", board });
     setOpenId(id as Id<"docs">);
     setNewDocTitle("");
     setCreating(false);
     setEditing(true);
-  }
-
-  function createFolder() {
-    if (!newFolderName.trim()) return;
-    const folderPath = currentFolder
-      ? `${currentFolder}/${newFolderName.trim()}`
-      : newFolderName.trim();
-    setCurrentFolder(folderPath);
-    setNewFolderName("");
-    setShowNewFolder(false);
   }
 
   async function handleChange(content: string) {
@@ -232,26 +241,6 @@ function DocsPage() {
     );
   }
 
-  // ── GRID VIEW ──────────────────────────────────────────────────────
-  const gridItem = (icon: string, label: string, sub: string, color: string, onClick: () => void, key: string) => (
-    <div key={key} onClick={onClick}
-      style={{
-        background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
-        borderRadius: "10px", padding: "16px", cursor: "pointer",
-        transition: "border-color 0.12s, background 0.12s",
-        display: "flex", flexDirection: "column", gap: "10px",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--bg-card-elevated)"; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; e.currentTarget.style.background = "var(--bg-card)"; }}
-    >
-      <div style={{ fontSize: "28px", lineHeight: 1 }}>{icon}</div>
-      <div>
-        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.35, marginBottom: "4px" }}>{label}</div>
-        <div style={{ fontSize: "10px", color: color, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{sub}</div>
-      </div>
-    </div>
-  );
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       {/* Header */}
@@ -268,7 +257,7 @@ function DocsPage() {
           <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>docs</span>
           <span style={{ color: "var(--border-default)" }}>/</span>
           {(["marketing", "product"] as Board[]).map(b => (
-            <button key={b} onClick={() => { setBoard(b); setCurrentFolder(""); }} style={{
+            <button key={b} onClick={() => { setBoard(b); setActiveCategory(null); }} style={{
               background: board === b ? "var(--bg-card-elevated)" : "none",
               border: board === b ? "1px solid var(--border-default)" : "1px solid transparent",
               borderRadius: "6px", padding: "3px 10px",
@@ -278,119 +267,129 @@ function DocsPage() {
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search docs…"
+          <input value={search} onChange={e => { setSearch(e.target.value); setActiveCategory(null); }} placeholder="Search docs…"
             style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "180px" }}
           />
-          <button onClick={() => setShowNewFolder(v => !v)} style={{
-            background: "none", border: "1px solid var(--border-default)", borderRadius: "6px",
-            padding: "5px 12px", color: "var(--text-muted)", fontSize: "12px", cursor: "pointer",
-          }}>+ Folder</button>
-          <div style={{ display: "flex", gap: "4px" }}>
-            <input value={newDocTitle} onChange={e => setNewDocTitle(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
-              placeholder="New document…"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "170px" }}
-            />
-            <button onClick={createDoc} disabled={!newDocTitle.trim() || creating} style={{
-              background: "var(--text-primary)", border: "none", borderRadius: "6px",
-              padding: "5px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600,
-              cursor: newDocTitle.trim() ? "pointer" : "not-allowed", opacity: newDocTitle.trim() ? 1 : 0.4,
-            }}>+ Doc</button>
-          </div>
+          <input value={newDocTitle} onChange={e => setNewDocTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
+            placeholder="New document…"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "170px" }}
+          />
+          <button onClick={createDoc} disabled={!newDocTitle.trim() || creating} style={{
+            background: "var(--text-primary)", border: "none", borderRadius: "6px",
+            padding: "5px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600,
+            cursor: newDocTitle.trim() ? "pointer" : "not-allowed", opacity: newDocTitle.trim() ? 1 : 0.4,
+          }}>+ New</button>
         </div>
       </header>
 
-      {/* Breadcrumb */}
+      {/* Category filter bar */}
       <div style={{ padding: "10px 24px", borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-        <span
-          onClick={() => { setCurrentFolder(""); setSearch(""); }}
-          style={{ fontSize: "12px", color: currentFolder || isSearching ? "var(--text-muted)" : "var(--text-primary)", cursor: "pointer", fontWeight: currentFolder ? 400 : 600 }}
-        >
-          All docs · {docs.length}
-        </span>
-        {crumbs.map((c, i) => (
-          <>
-            <span key={`sep-${i}`} style={{ color: "var(--border-default)", fontSize: "12px" }}>/</span>
-            <span
-              key={c.path}
-              onClick={() => setCurrentFolder(c.path)}
-              style={{
-                fontSize: "12px",
-                color: c.path === currentFolder ? "var(--text-primary)" : "var(--text-muted)",
-                cursor: "pointer",
-                fontWeight: c.path === currentFolder ? 600 : 400,
-              }}
-            >
-              {c.label}
-            </span>
-          </>
-        ))}
+        <button onClick={() => { setActiveCategory(null); setSearch(""); }} style={{
+          background: activeCategory === null && !isSearching ? "var(--bg-card-elevated)" : "none",
+          border: activeCategory === null && !isSearching ? "1px solid var(--border-default)" : "1px solid transparent",
+          borderRadius: "6px", padding: "3px 12px", fontSize: "12px",
+          color: activeCategory === null && !isSearching ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
+        }}>All · {docs.length}</button>
+        {CATEGORIES.map(cat => {
+          const count = docsWithCategory.filter(d => d.category === cat.id).length;
+          const isActive = activeCategory === cat.id;
+          return (
+            <button key={cat.id} onClick={() => { setActiveCategory(isActive ? null : cat.id); setSearch(""); }} style={{
+              background: isActive ? "var(--bg-card-elevated)" : "none",
+              border: isActive ? "1px solid var(--border-default)" : "1px solid transparent",
+              borderRadius: "6px", padding: "3px 12px", fontSize: "12px",
+              color: isActive ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: "5px",
+            }}>
+              <span>{cat.icon}</span>
+              <span>{cat.label}</span>
+              <span style={{ opacity: 0.6 }}>· {count}</span>
+            </button>
+          );
+        })}
         {isSearching && (
-          <>
-            <span style={{ color: "var(--border-default)", fontSize: "12px" }}>/</span>
-            <span style={{ fontSize: "12px", color: "var(--text-primary)", fontWeight: 600 }}>
-              Search: "{search}" · {searchResults.length}
-            </span>
-            <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "11px", marginLeft: "4px" }}>✕</button>
-          </>
-        )}
-
-        {/* New folder inline input */}
-        {showNewFolder && (
-          <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
-            <input
-              autoFocus
-              value={newFolderName}
-              onChange={e => setNewFolderName(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") createFolder(); if (e.key === "Escape") { setShowNewFolder(false); setNewFolderName(""); } }}
-              placeholder="Folder name…"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "4px 9px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "150px" }}
-            />
-            <button onClick={createFolder} style={{ background: "var(--text-primary)", border: "none", borderRadius: "6px", padding: "4px 10px", color: "var(--bg-app)", fontSize: "12px", cursor: "pointer" }}>Create</button>
-            <button onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "13px" }}>✕</button>
-          </div>
+          <span style={{ fontSize: "12px", color: "var(--text-muted)", marginLeft: "4px" }}>
+            {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for "{search}"
+            <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", marginLeft: "6px" }}>✕</button>
+          </span>
         )}
       </div>
 
-      {/* Grid */}
+      {/* Doc grid */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
-        {isSearching ? (
-          // Search results — flat list across all folders
-          searchResults.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-muted)", fontSize: "14px" }}>No results for "{search}"</div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" }}>
-              {searchResults.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => {
-                const color = AGENT_COLORS[doc.agent ?? ""] ?? "var(--text-muted)";
-                return gridItem("📄", doc.title, doc.agent ?? "unknown", color, () => setOpenId(doc._id), doc._id);
+        {(() => {
+          const displayDocs = isSearching ? searchResults : visibleDocs;
+          if (displayDocs.length === 0) {
+            return (
+              <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
+                <div style={{ fontSize: "14px" }}>{docs.length === 0 ? "No documents yet" : "No results"}</div>
+              </div>
+            );
+          }
+
+          // If showing all (no filter, no search) → show category sections
+          if (!isSearching && !activeCategory) {
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+                {CATEGORIES.map(cat => {
+                  const catDocs = docsWithCategory.filter(d => d.category === cat.id);
+                  if (catDocs.length === 0) return null;
+                  return (
+                    <div key={cat.id}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <span style={{ fontSize: "16px" }}>{cat.icon}</span>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{cat.label}</span>
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>· {catDocs.length}</span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "8px" }}>
+                        {catDocs.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => {
+                          const agColor = AGENT_COLORS[doc.agent ?? ""] ?? "var(--text-muted)";
+                          return (
+                            <div key={doc._id} onClick={() => setOpenId(doc._id)}
+                              style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "14px", cursor: "pointer", transition: "border-color 0.12s, background 0.12s" }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--bg-card-elevated)"; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; e.currentTarget.style.background = "var(--bg-card)"; }}
+                            >
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "6px" }}>{doc.title}</div>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: "10px", fontWeight: 700, color: agColor, textTransform: "uppercase", letterSpacing: "0.05em" }}>{doc.agent}</span>
+                                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          // Filtered view (single category or search)
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "8px" }}>
+              {displayDocs.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => {
+                const agColor = AGENT_COLORS[doc.agent ?? ""] ?? "var(--text-muted)";
+                return (
+                  <div key={doc._id} onClick={() => setOpenId(doc._id)}
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "14px", cursor: "pointer", transition: "border-color 0.12s, background 0.12s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--bg-card-elevated)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; e.currentTarget.style.background = "var(--bg-card)"; }}
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "6px" }}>{doc.title}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, color: agColor, textTransform: "uppercase", letterSpacing: "0.05em" }}>{doc.agent}</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</span>
+                    </div>
+                  </div>
+                );
               })}
             </div>
-          )
-        ) : (
-          // Normal folder view
-          folders.length === 0 && directDocs.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-muted)" }}>
-              <div style={{ fontSize: "28px", marginBottom: "10px" }}>📂</div>
-              <div style={{ fontSize: "14px" }}>This folder is empty</div>
-              <div style={{ fontSize: "12px", marginTop: "4px" }}>Create a document or folder to get started</div>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" }}>
-              {/* Folders first */}
-              {folders.map(folder => {
-                const folderPath = currentFolder ? `${currentFolder}/${folder}` : folder;
-                const count = docs.filter(d => d.path.startsWith(folderPath + "/")).length;
-                const folderColor = AGENT_COLORS[folder] ?? "var(--text-muted)";
-                return gridItem("📁", folder, `${count} doc${count !== 1 ? "s" : ""}`, folderColor, () => setCurrentFolder(folderPath), `folder-${folder}`);
-              })}
-              {/* Then docs */}
-              {directDocs.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => {
-                const color = AGENT_COLORS[doc.agent ?? ""] ?? "var(--text-muted)";
-                return gridItem("📄", doc.title, `${doc.agent ?? ""} · ${formatDate(doc.updatedAt)}`, color, () => setOpenId(doc._id), doc._id);
-              })}
-            </div>
-          )
-        )}
+          );
+        })()}
       </div>
 
       <style>{MARKDOWN_STYLES}</style>
