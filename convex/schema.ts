@@ -92,4 +92,26 @@ export default defineSchema({
     .index("by_path", ["path"])
     .index("by_board", ["board", "updatedAt"])
     .index("by_card", ["cardId"]),
+
+  posts: defineTable({
+    title: v.string(),
+    content: v.string(),
+    platform: v.union(v.literal("x"), v.literal("linkedin")),
+    status: v.union(
+      v.literal("idea"),
+      v.literal("draft"),
+      v.literal("ready"),
+      v.literal("scheduled"),
+      v.literal("published")
+    ),
+    scheduledAt: v.optional(v.number()),
+    board: v.union(v.literal("marketing"), v.literal("product")),
+    createdBy: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_board", ["board", "scheduledAt"])
+    .index("by_status", ["board", "status"])
+    .index("by_scheduled", ["scheduledAt"]),
 });
