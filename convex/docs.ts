@@ -81,3 +81,24 @@ export const remove = mutation({
   args: { id: v.id("docs") },
   handler: async (ctx, args) => ctx.db.delete(args.id),
 });
+
+export const listAll = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("docs").order("desc").collect();
+  },
+});
+
+export const listGroupedByAgent = query({
+  args: {},
+  handler: async (ctx) => {
+    const docs = await ctx.db.query("docs").order("desc").collect();
+    const grouped: Record<string, typeof docs> = {};
+    for (const doc of docs) {
+      const agent = doc.agent ?? "unknown";
+      if (!grouped[agent]) grouped[agent] = [];
+      grouped[agent].push(doc);
+    }
+    return grouped;
+  },
+});
