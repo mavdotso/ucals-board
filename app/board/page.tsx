@@ -1,33 +1,29 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 
-type Note = {
-  _id: Id<"boardNodes">;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-  color: "yellow" | "blue" | "green" | "pink";
-};
+type NoteColor = "yellow" | "blue" | "green" | "pink";
 
-const COLORS = {
+const COLORS: Record<NoteColor, string> = {
   yellow: "#FEF3C7",
   blue: "#DBEAFE",
   green: "#D1FAE5",
   pink: "#FCE7F3",
 };
 
+const NOTE_WIDTH = 200;
+const NOTE_HEIGHT = 160;
+
 export default function BoardPage() {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [draggingNote, setDraggingNote] = useState<Id<"boardNodes"> | null>(null);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState<{ id: Id<"boardNodes">; startX: number; startY: number; noteStartX: number; noteStartY: number } | null>(null);
+  const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [editingNote, setEditingNote] = useState<Id<"boardNodes"> | null>(null);
   const [hoveringNote, setHoveringNote] = useState<Id<"boardNodes"> | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -37,286 +33,216 @@ export default function BoardPage() {
   const updateNote = useMutation(api.board.update);
   const deleteNote = useMutation(api.board.remove);
 
-  // Handle wheel zoom
+  // Wheel zoom — centered on cursor
   useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
     const handleWheel = (e: WheelEvent) => {
-      if (canvasRef.current && canvasRef.current.contains(e.target as Node)) {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        setScale(prev => Math.max(0.3, Math.min(3, prev * delta)));
-      }
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setScale(prev => {
+        const next = Math.max(0.2, Math.min(4, prev * delta));
+        setOffset(o => ({
+          x: mouseX - (mouseX - o.x) * (next / prev),
+          y: mouseY - (mouseY - o.y) * (next / prev),
+        }));
+        return next;
+      });
     };
-    document.addEventListener("wheel", handleWheel, { passive: false });
-    return () => document.removeEventListener("wheel", handleWheel);
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
   }, []);
 
-  // Pan handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains("canvas-bg")) {
+  // Global mousemove + mouseup for dragging and panning
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (dragging) {
+        const dx = (e.clientX - dragging.startX) / scale;
+        const dy = (e.clientY - dragging.startY) / scale;
+        setLocalPositions(p => ({
+          ...p,
+          [dragging.id]: { x: dragging.noteStartX + dx, y: dragging.noteStartY + dy },
+        }));
+      } else if (isPanning) {
+        setOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      }
+    };
+    const handleMouseUp = async (e: MouseEvent) => {
+      if (dragging) {
+        const dx = (e.clientX - dragging.startX) / scale;
+        const dy = (e.clientY - dragging.startY) / scale;
+        const newX = dragging.noteStartX + dx;
+        const newY = dragging.noteStartY + dy;
+        await updateNote({ id: dragging.id, x: newX, y: newY });
+        setDragging(null);
+      }
+      setIsPanning(false);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging, isPanning, panStart, scale, updateNote]);
+
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.target === canvasRef.current || (e.target as HTMLElement).dataset.bg === "1") {
       setIsPanning(true);
-      setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-      e.preventDefault();
+      setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      setEditingNote(null);
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      setOffset({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsPanning(false);
-  };
-
-  // Create note on double-click
   const handleDoubleClick = async (e: React.MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains("canvas-bg")) {
+    if (e.target === canvasRef.current || (e.target as HTMLElement).dataset.bg === "1") {
       const rect = canvasRef.current!.getBoundingClientRect();
-      const x = (e.clientX - rect.left - offset.x) / scale;
-      const y = (e.clientY - rect.top - offset.y) / scale;
+      const x = (e.clientX - rect.left - offset.x) / scale - NOTE_WIDTH / 2;
+      const y = (e.clientY - rect.top - offset.y) / scale - NOTE_HEIGHT / 2;
       await createNote({ x, y, content: "", color: "yellow" });
     }
   };
 
-  // Note drag handlers
-  const handleNoteDragStart = (e: React.MouseEvent, id: Id<"boardNodes">) => {
+  const handleNoteMouseDown = (e: React.MouseEvent, note: { _id: Id<"boardNodes">; x: number; y: number }) => {
     e.stopPropagation();
-    setDraggingNote(id);
-    const note = notes.find(n => n._id === id);
-    if (note) {
-      setDragStart({
-        x: e.clientX - note.x * scale - offset.x,
-        y: e.clientY - note.y * scale - offset.y,
-      });
-    }
-  };
-
-  const handleNoteDragMove = (e: React.MouseEvent) => {
-    if (draggingNote) {
-      const note = notes.find(n => n._id === draggingNote);
-      if (note) {
-        const newX = (e.clientX - dragStart.x - offset.x) / scale;
-        const newY = (e.clientY - dragStart.y - offset.y) / scale;
-        // We'll update on mouse up to avoid too many mutations
-      }
-    }
-  };
-
-  const handleNoteDragEnd = async (e: React.MouseEvent) => {
-    if (draggingNote) {
-      const newX = (e.clientX - dragStart.x - offset.x) / scale;
-      const newY = (e.clientY - dragStart.y - offset.y) / scale;
-      await updateNote({ id: draggingNote, x: newX, y: newY });
-      setDraggingNote(null);
-    }
-  };
-
-  // Note edit handlers
-  const handleNoteClick = (e: React.MouseEvent, id: Id<"boardNodes">) => {
-    e.stopPropagation();
-    if (!draggingNote) {
-      setEditingNote(id);
-    }
-  };
-
-  const handleNoteContentChange = async (id: Id<"boardNodes">, content: string) => {
-    await updateNote({ id, content });
-  };
-
-  const handleNoteColorChange = async (id: Id<"boardNodes">, color: "yellow" | "blue" | "green" | "pink") => {
-    await updateNote({ id, color });
+    e.preventDefault();
+    setDragging({
+      id: note._id,
+      startX: e.clientX,
+      startY: e.clientY,
+      noteStartX: localPositions[note._id]?.x ?? note.x,
+      noteStartY: localPositions[note._id]?.y ?? note.y,
+    });
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       {/* Header */}
       <header style={{
-        borderBottom: "1px solid var(--border-subtle)",
-        padding: "0 24px",
-        height: "52px",
-        display: "flex",
-        alignItems: "center",
-        background: "var(--bg-secondary)",
-        flexShrink: 0,
+        borderBottom: "1px solid var(--border-subtle)", padding: "0 24px", height: "52px",
+        display: "flex", alignItems: "center", background: "var(--bg-secondary)", flexShrink: 0, gap: "10px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>
-            ucals
-          </Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>
-            stack
-          </Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>
-            docs
-          </Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>board</span>
-        </div>
-        <div style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-muted)" }}>
-          Zoom: {Math.round(scale * 100)}% • Double-click to add note
+        <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
+        <span style={{ color: "var(--border-default)" }}>/</span>
+        <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
+        <span style={{ color: "var(--border-default)" }}>/</span>
+        <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
+        <span style={{ color: "var(--border-default)" }}>/</span>
+        <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
+        <span style={{ color: "var(--border-default)" }}>/</span>
+        <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>board</span>
+        <div style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text-muted)" }}>
+          {Math.round(scale * 100)}% · double-click to add note · drag to pan
         </div>
       </header>
 
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="canvas-bg"
-        onMouseDown={handleMouseDown}
-        onMouseMove={(e) => {
-          handleMouseMove(e);
-          handleNoteDragMove(e);
-        }}
-        onMouseUp={(e) => {
-          handleMouseUp();
-          handleNoteDragEnd(e);
-        }}
+        onMouseDown={handleCanvasMouseDown}
         onDoubleClick={handleDoubleClick}
         style={{
-          flex: 1,
-          position: "relative",
-          overflow: "hidden",
-          cursor: isPanning ? "grabbing" : draggingNote ? "move" : "grab",
-          background: "var(--bg-app)",
+          flex: 1, position: "relative", overflow: "hidden",
+          cursor: isPanning ? "grabbing" : dragging ? "move" : "grab",
+          userSelect: "none",
         }}
       >
-        <div
-          style={{
-            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-            transformOrigin: "0 0",
-            position: "absolute",
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          {notes.map(note => (
-            <div
-              key={note._id}
-              onMouseDown={(e) => handleNoteDragStart(e, note._id)}
-              onMouseEnter={() => setHoveringNote(note._id)}
-              onMouseLeave={() => setHoveringNote(null)}
-              onClick={(e) => handleNoteClick(e, note._id)}
-              style={{
-                position: "absolute",
-                left: `${note.x}px`,
-                top: `${note.y}px`,
-                width: `${note.width}px`,
-                height: `${note.height}px`,
-                background: COLORS[note.color as keyof typeof COLORS],
-                border: "1px solid rgba(0,0,0,0.1)",
-                borderRadius: "8px",
-                padding: "12px",
-                cursor: draggingNote === note._id ? "move" : "pointer",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                display: "flex",
-                flexDirection: "column",
-                transition: draggingNote === note._id ? "none" : "box-shadow 0.2s",
-              }}
-            >
-              {/* Note content */}
-              {editingNote === note._id ? (
-                <textarea
-                  autoFocus
-                  defaultValue={note.content}
-                  onBlur={(e) => {
-                    handleNoteContentChange(note._id, e.target.value);
-                    setEditingNote(null);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    resize: "none",
-                    fontSize: "13px",
-                    fontFamily: "inherit",
-                    color: "#333",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    flex: 1,
-                    fontSize: "13px",
-                    color: "#333",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    overflow: "hidden",
-                  }}
-                >
-                  {note.content || "Double-click to edit"}
-                </div>
-              )}
+        {/* Dot grid background */}
+        <div data-bg="1" style={{
+          position: "absolute", inset: 0,
+          backgroundImage: `radial-gradient(circle, var(--border-subtle) 1px, transparent 1px)`,
+          backgroundSize: `${24 * scale}px ${24 * scale}px`,
+          backgroundPosition: `${offset.x}px ${offset.y}px`,
+          pointerEvents: "none",
+        }} />
 
-              {/* Controls on hover */}
-              {hoveringNote === note._id && !editingNote && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "-30px",
-                    left: "0",
-                    display: "flex",
-                    gap: "4px",
-                    background: "white",
-                    padding: "4px",
-                    borderRadius: "6px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                  }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  {/* Color picker */}
-                  {(["yellow", "blue", "green", "pink"] as const).map(color => (
-                    <button
-                      key={color}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNoteColorChange(note._id, color);
-                      }}
-                      style={{
-                        width: "20px",
-                        height: "20px",
-                        borderRadius: "50%",
-                        background: COLORS[color],
-                        border: note.color === color ? "2px solid #333" : "1px solid rgba(0,0,0,0.2)",
-                        cursor: "pointer",
-                      }}
-                    />
-                  ))}
-                  {/* Delete button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteNote({ id: note._id });
+        {/* Notes */}
+        <div style={{
+          position: "absolute", top: 0, left: 0,
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transformOrigin: "0 0",
+        }}>
+          {notes.map(note => {
+            const pos = localPositions[note._id] ?? { x: note.x, y: note.y };
+            const isEditing = editingNote === note._id;
+            const isHovering = hoveringNote === note._id;
+            return (
+              <div
+                key={note._id}
+                onMouseDown={(e) => handleNoteMouseDown(e, { ...note, ...pos })}
+                onMouseEnter={() => setHoveringNote(note._id)}
+                onMouseLeave={() => setHoveringNote(null)}
+                onClick={(e) => { e.stopPropagation(); if (!dragging) setEditingNote(note._id); }}
+                style={{
+                  position: "absolute",
+                  left: pos.x, top: pos.y,
+                  width: NOTE_WIDTH, height: NOTE_HEIGHT,
+                  background: COLORS[note.color as NoteColor] ?? COLORS.yellow,
+                  borderRadius: "8px",
+                  padding: "12px",
+                  boxShadow: isHovering || isEditing ? "0 4px 16px rgba(0,0,0,0.18)" : "0 2px 8px rgba(0,0,0,0.10)",
+                  display: "flex", flexDirection: "column",
+                  cursor: dragging?.id === note._id ? "move" : "pointer",
+                  transition: "box-shadow 0.15s",
+                }}
+              >
+                {isEditing ? (
+                  <textarea
+                    autoFocus
+                    defaultValue={note.content}
+                    onBlur={async (e) => {
+                      await updateNote({ id: note._id, content: e.target.value });
+                      setEditingNote(null);
                     }}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                     style={{
-                      marginLeft: "8px",
-                      width: "20px",
-                      height: "20px",
-                      borderRadius: "4px",
-                      background: "#ef4444",
-                      color: "white",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                      fontWeight: "bold",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      flex: 1, background: "transparent", border: "none", outline: "none",
+                      resize: "none", fontSize: "13px", fontFamily: "inherit", color: "#333", lineHeight: 1.5,
                     }}
+                  />
+                ) : (
+                  <div style={{
+                    flex: 1, fontSize: "13px", color: "#333", whiteSpace: "pre-wrap",
+                    wordBreak: "break-word", overflow: "hidden", lineHeight: 1.5,
+                  }}>
+                    {note.content || <span style={{ opacity: 0.4 }}>Click to edit…</span>}
+                  </div>
+                )}
+
+                {/* Controls on hover */}
+                {isHovering && !isEditing && (
+                  <div
+                    style={{
+                      position: "absolute", bottom: -36, left: 0,
+                      display: "flex", gap: 4, background: "white",
+                      padding: "4px 6px", borderRadius: 6,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)", zIndex: 10,
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
-                    ×
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+                    {(["yellow", "blue", "green", "pink"] as NoteColor[]).map(c => (
+                      <button key={c} onClick={(e) => { e.stopPropagation(); updateNote({ id: note._id, color: c }); }} style={{
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: COLORS[c],
+                        border: note.color === c ? "2px solid #333" : "1px solid rgba(0,0,0,0.2)",
+                        cursor: "pointer", padding: 0,
+                      }} />
+                    ))}
+                    <button onClick={(e) => { e.stopPropagation(); deleteNote({ id: note._id }); }} style={{
+                      marginLeft: 6, width: 18, height: 18, borderRadius: 4,
+                      background: "#ef4444", color: "white", border: "none",
+                      cursor: "pointer", fontSize: 12, fontWeight: "bold",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>×</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

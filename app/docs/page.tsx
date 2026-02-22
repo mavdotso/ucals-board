@@ -238,9 +238,13 @@ function DocsPage() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
           <span style={{ color: "var(--border-default)" }}>/</span>
+          <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>docs</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
           <span style={{ color: "var(--border-default)" }}>/</span>
-          <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>docs</span>
+          <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
+          <span style={{ color: "var(--border-default)" }}>/</span>
+          <Link href="/board" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>board</Link>
           <span style={{ color: "var(--border-default)" }}>/</span>
           {(["all", "marketing", "product"] as BoardFilter[]).map(b => (
             <button key={b} onClick={() => setBoardFilter(b)} style={{
@@ -299,7 +303,19 @@ function DocsPage() {
                       }}
                     >
                       <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{isCollapsed ? "▸" : "▾"}</span>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)", textTransform: "capitalize", flex: 1, letterSpacing: "0.04em" }}>{folder}</span>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)", flex: 1, letterSpacing: "0.04em" }}>
+                        {({
+                          aria: "🧠 Strategy",
+                          maya: "✍️ Copy",
+                          leo: "📣 Social",
+                          sage: "🔍 SEO",
+                          rex: "📊 Finance",
+                          jessica: "🤝 Outreach",
+                          nova: "🎨 Creative",
+                          campaign: "🚀 Campaigns",
+                          vlad: "👤 Vlad",
+                        } as Record<string, string>)[folder] ?? `📁 ${folder.charAt(0).toUpperCase() + folder.slice(1)}`}
+                      </span>
                       <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--bg-card)", borderRadius: "4px", padding: "1px 5px" }}>{docs.length}</span>
                     </button>
                     {/* Doc list */}

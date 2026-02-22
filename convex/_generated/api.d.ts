@@ -9,6 +9,7 @@
  */
 
 import type * as agentJobs from "../agentJobs.js";
+import type * as board from "../board.js";
 import type * as cards from "../cards.js";
 import type * as docs from "../docs.js";
 import type * as posts from "../posts.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agentJobs: typeof agentJobs;
+  board: typeof board;
   cards: typeof cards;
   docs: typeof docs;
   posts: typeof posts;
