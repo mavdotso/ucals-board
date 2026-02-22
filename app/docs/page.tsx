@@ -11,9 +11,19 @@ import { marked } from "marked";
 type BoardFilter = "all" | "marketing" | "product";
 
 // Folder tree structure type
+type Doc = {
+  _id: Id<"docs">;
+  path: string;
+  title: string;
+  content: string;
+  agent?: string;
+  board: string;
+  updatedAt: number;
+  cardId?: Id<"cards">;
+};
 type FolderTree = {
-  folders: Record<string, typeof allDocs>;
-  files: typeof allDocs;
+  folders: Record<string, Doc[]>;
+  files: Doc[];
 };
 
 function formatDate(ts: number) {
