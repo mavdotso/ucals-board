@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import Link from "next/link";
+import { Nav } from "@/app/components/Nav";
 
 type NoteColor = "yellow" | "blue" | "green" | "pink";
 
@@ -121,23 +121,7 @@ export default function BoardPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       {/* Header */}
-      <header style={{
-        borderBottom: "1px solid var(--border-subtle)", padding: "0 24px", height: "52px",
-        display: "flex", alignItems: "center", background: "var(--bg-secondary)", flexShrink: 0, gap: "10px",
-      }}>
-        <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-        <span style={{ color: "var(--border-default)" }}>/</span>
-        <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-        <span style={{ color: "var(--border-default)" }}>/</span>
-        <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
-        <span style={{ color: "var(--border-default)" }}>/</span>
-        <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
-        <span style={{ color: "var(--border-default)" }}>/</span>
-        <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>board</span>
-        <div style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text-muted)" }}>
-          {Math.round(scale * 100)}% · double-click to add note · drag to pan
-        </div>
-      </header>
+      <Nav active="/board" right={<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{Math.round(scale * 100)}% · double-click to add · drag to pan</span>} />
 
       {/* Canvas */}
       <div

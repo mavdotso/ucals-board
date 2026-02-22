@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { PostModal } from "../../components/PostModal";
-import Link from "next/link";
+import { Nav } from "@/app/components/Nav";
 
 type Platform = "x" | "linkedin";
 type PostStatus = "idea" | "draft" | "ready" | "scheduled" | "published";
@@ -83,71 +83,20 @@ export default function PostsKanbanPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {/* Header */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          padding: "0 24px",
-          height: "52px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "var(--bg-secondary)",
-          flexShrink: 0,
-          gap: "16px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>posts</span>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/board" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>board</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "12px", margin: "0 4px" }}>|</span>
-          <div style={{ display: "flex", gap: "4px" }}>
-            {(["marketing", "product"] as Board[]).map((b) => (
-              <button
-                key={b}
-                onClick={() => setActiveBoard(b)}
-                style={{
-                  background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
-                  border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
-                  borderRadius: "6px",
-                  padding: "4px 12px",
-                  color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
-                  fontSize: "13px",
-                  fontWeight: activeBoard === b ? 600 : 400,
-                  cursor: "pointer",
-                  textTransform: "capitalize",
-                }}
-              >
-                {b}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          onClick={() => setAdding(true)}
-          style={{
-            background: "var(--text-primary)",
-            border: "none",
-            borderRadius: "7px",
-            padding: "6px 14px",
-            color: "var(--bg-app)",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
+      <Nav active="/calendar" right={<>
+        {(["marketing", "product"] as Board[]).map((b) => (
+          <button key={b} onClick={() => setActiveBoard(b)} style={{
+            background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
+            border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
+            borderRadius: "6px", padding: "4px 12px",
+            color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
+            fontSize: "12px", fontWeight: activeBoard === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
+          }}>{b}</button>
+        ))}
+        <button onClick={() => setAdding(true)} style={{ background: "var(--text-primary)", border: "none", borderRadius: "7px", padding: "6px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
           + New post
         </button>
-      </header>
+      </>} />
 
       {/* Kanban board */}
       <div style={{ flex: 1, overflowX: "auto", overflowY: "hidden", padding: "20px 24px" }}>

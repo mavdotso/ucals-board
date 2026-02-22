@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { RichEditor } from "@/app/components/editor/RichEditor";
 import { Id } from "@/convex/_generated/dataModel";
-import Link from "next/link";
+import { Nav } from "@/app/components/Nav";
 import { marked } from "marked";
 
 type BoardFilter = "all" | "marketing" | "product";
@@ -230,48 +230,30 @@ function DocsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       {/* Header */}
-      <header style={{
-        borderBottom: "1px solid var(--border-subtle)", padding: "0 24px",
-        height: "52px", display: "flex", alignItems: "center",
-        justifyContent: "space-between", background: "var(--bg-secondary)", flexShrink: 0, gap: "16px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>docs</span>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          <Link href="/board" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>board</Link>
-          <span style={{ color: "var(--border-default)" }}>/</span>
-          {(["all", "marketing", "product"] as BoardFilter[]).map(b => (
-            <button key={b} onClick={() => setBoardFilter(b)} style={{
-              background: boardFilter === b ? "var(--bg-card-elevated)" : "none",
-              border: boardFilter === b ? "1px solid var(--border-default)" : "1px solid transparent",
-              borderRadius: "6px", padding: "3px 10px",
-              color: boardFilter === b ? "var(--text-primary)" : "var(--text-muted)",
-              fontSize: "12px", fontWeight: boardFilter === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
-            }}>{b}</button>
-          ))}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search docs…"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "180px" }}
-          />
-          <input value={newDocTitle} onChange={e => setNewDocTitle(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
-            placeholder="New document…"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "170px" }}
-          />
-          <button onClick={createDoc} disabled={!newDocTitle.trim() || creating} style={{
-            background: "var(--text-primary)", border: "none", borderRadius: "6px",
-            padding: "5px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600,
-            cursor: newDocTitle.trim() ? "pointer" : "not-allowed", opacity: newDocTitle.trim() ? 1 : 0.4,
-          }}>+ New</button>
-        </div>
-      </header>
+      <Nav active="/docs" right={<>
+        {(["all", "marketing", "product"] as BoardFilter[]).map(b => (
+          <button key={b} onClick={() => setBoardFilter(b)} style={{
+            background: boardFilter === b ? "var(--bg-card-elevated)" : "none",
+            border: boardFilter === b ? "1px solid var(--border-default)" : "1px solid transparent",
+            borderRadius: "6px", padding: "3px 10px",
+            color: boardFilter === b ? "var(--text-primary)" : "var(--text-muted)",
+            fontSize: "12px", fontWeight: boardFilter === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
+          }}>{b}</button>
+        ))}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "140px" }}
+        />
+        <input value={newDocTitle} onChange={e => setNewDocTitle(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
+          placeholder="New document…"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "150px" }}
+        />
+        <button onClick={createDoc} disabled={!newDocTitle.trim() || creating} style={{
+          background: "var(--text-primary)", border: "none", borderRadius: "6px",
+          padding: "5px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600,
+          cursor: newDocTitle.trim() ? "pointer" : "not-allowed", opacity: newDocTitle.trim() ? 1 : 0.4,
+        }}>+ New</button>
+      </>} />
 
       {/* Body: Sidebar + Panel */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>

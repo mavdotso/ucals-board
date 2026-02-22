@@ -7,7 +7,7 @@ import { useState, useRef } from "react";
 import { CardModal } from "./CardModal";
 import { DocIntakeModal } from "./DocIntakeModal";
 import { GlobalSearch } from "./GlobalSearch";
-import Link from "next/link";
+import { Nav } from "@/app/components/Nav";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type BoardType = "marketing" | "product";
@@ -95,138 +95,45 @@ export function Board() {
       )}
 
       {/* Header */}
-      <header style={{
-        borderBottom: "1px solid var(--border-subtle)",
-        padding: "0 24px",
-        height: "52px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "var(--bg-secondary)",
-        flexShrink: 0,
-        gap: "16px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>ucals</span>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/board" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>board</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          {/* Board tabs */}
-          <div style={{ display: "flex", gap: "4px" }}>
-            {(["marketing", "product"] as BoardType[]).map((b) => (
-              <button
-                key={b}
-                onClick={() => setActiveBoard(b)}
-                style={{
-                  background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
-                  border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
-                  borderRadius: "6px",
-                  padding: "4px 12px",
-                  color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
-                  fontSize: "13px",
-                  fontWeight: activeBoard === b ? 600 : 400,
-                  cursor: "pointer",
-                  textTransform: "capitalize",
-                }}
-              >
-                {b}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <Nav active="/" right={<>
+        {/* Board tabs */}
+        {(["marketing", "product"] as BoardType[]).map((b) => (
+          <button key={b} onClick={() => setActiveBoard(b)} style={{
+            background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
+            border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
+            borderRadius: "6px", padding: "4px 12px",
+            color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
+            fontSize: "12px", fontWeight: activeBoard === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
+          }}>{b}</button>
+        ))}
+        <span style={{ color: "var(--border-default)" }}>|</span>
         {/* Agents */}
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, justifyContent: "center" }}>
-          {AGENTS.map((a) => {
-            const isActive = activeAgent === a.id;
-            return (
-              <button
-                key={a.id}
-                onClick={() => setActiveAgent(isActive ? null : a.id)}
-                title={`${a.label} — ${a.role}${isActive ? " (click to clear)" : ""}`}
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  background: isActive ? `${a.color}30` : `${a.color}10`,
-                  border: `1px solid ${isActive ? a.color : `${a.color}33`}`,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  outline: "none",
-                }}
-              >
-                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: a.color, opacity: isActive ? 1 : 0.6 }} />
-                <span style={{ fontSize: "11px", fontWeight: isActive ? 700 : 500, color: a.color }}>{a.label}</span>
-                <span style={{ fontSize: "10px", color: isActive ? a.color : "var(--text-muted)", opacity: isActive ? 0.8 : 1 }}>{a.role}</span>
-              </button>
-            );
-          })}
-          {activeAgent && (
-            <button
-              onClick={() => setActiveAgent(null)}
+        {AGENTS.map((a) => {
+          const isActive = activeAgent === a.id;
+          return (
+            <button key={a.id} onClick={() => setActiveAgent(isActive ? null : a.id)}
+              title={`${a.label} — ${a.role}${isActive ? " (click to clear)" : ""}`}
               style={{
-                fontSize: "11px", color: "var(--text-muted)",
-                background: "none", border: "none", cursor: "pointer",
-                padding: "3px 6px", borderRadius: "4px",
-              }}
-            >
-              ✕ clear
+                display: "flex", alignItems: "center", gap: "5px", padding: "3px 8px", borderRadius: "6px",
+                background: isActive ? `${a.color}30` : `${a.color}10`,
+                border: `1px solid ${isActive ? a.color : `${a.color}33`}`,
+                cursor: "pointer", outline: "none",
+              }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: a.color, opacity: isActive ? 1 : 0.6 }} />
+              <span style={{ fontSize: "11px", fontWeight: isActive ? 700 : 500, color: a.color }}>{a.label}</span>
             </button>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <GlobalSearch board={activeBoard} onSelectCard={(id) => setSearchCardId(id as string)} />
-          <button
-            onClick={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              input.accept = ".html,.htm,.md,.txt";
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => setDocIntake(ev.target?.result as string);
-                reader.readAsText(file);
-              };
-              input.click();
-            }}
-            style={{
-              background: "none",
-              border: "1px solid var(--border-default)",
-              borderRadius: "7px",
-              padding: "6px 12px",
-              color: "var(--text-secondary)",
-              fontSize: "13px",
-              cursor: "pointer",
-            }}
-            title="Import document — Aria will extract and assign tasks"
-          >
-            Import doc
-          </button>
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              background: "var(--text-primary)",
-              border: "none",
-              borderRadius: "7px",
-              padding: "6px 14px",
-              color: "var(--bg-app)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            + New card
-          </button>
-        </div>
-      </header>
+          );
+        })}
+        {activeAgent && <button onClick={() => setActiveAgent(null)} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>✕</button>}
+        <span style={{ color: "var(--border-default)" }}>|</span>
+        <GlobalSearch board={activeBoard} onSelectCard={(id) => setSearchCardId(id as string)} />
+        <button onClick={() => { const input = document.createElement("input"); input.type = "file"; input.accept = ".html,.htm,.md,.txt"; input.onchange = (e) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setDocIntake(ev.target?.result as string); reader.readAsText(file); }; input.click(); }} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: "7px", padding: "6px 12px", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}>
+          Import doc
+        </button>
+        <button onClick={() => setAdding(true)} style={{ background: "var(--text-primary)", border: "none", borderRadius: "7px", padding: "6px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+          + New card
+        </button>
+      </>} />
 
       {/* Board */}
       <div style={{ flex: 1, overflowX: "auto", overflowY: "hidden", padding: "20px 24px" }}>
