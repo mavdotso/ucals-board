@@ -62,6 +62,10 @@ function DocsPage() {
   const [newDocTitle, setNewDocTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [commentBubble, setCommentBubble] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [commentPrompt, setCommentPrompt] = useState("");
+  const [sendingComment, setSendingComment] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const searchParams = useSearchParams();
 
@@ -151,6 +155,66 @@ function DocsPage() {
     setEditingTitle(false);
     await save({ id: openId, title });
   }
+
+  async function handleTextSelection() {
+    if (editing) return; // Only active in preview mode
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim();
+    if (selectedText && selectedText.length > 0) {
+      const range = selection?.getRangeAt(0);
+      const rect = range?.getBoundingClientRect();
+      if (rect) {
+        setCommentBubble({
+          x: rect.left + rect.width / 2,
+          y: rect.top - 10,
+          text: selectedText
+        });
+        setCommentPrompt("");
+      }
+    }
+  }
+
+  async function sendComment() {
+    if (!commentPrompt.trim() || !commentBubble || !openDoc) return;
+    setSendingComment(true);
+
+    try {
+      const response = await fetch("https://first-viper-528.convex.site/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          board: "business",
+          createdBy: "vlad",
+          assignees: ["anya"],
+          priority: "medium",
+          title: `[Doc: ${openDoc.title}] ${commentPrompt.slice(0, 60)}`,
+          description: `**Selected text:**\n> ${commentBubble.text}\n\n**Request:**\n${commentPrompt}\n\n**Doc path:** ${openDoc.path || "unknown"}`
+        })
+      });
+
+      if (response.ok) {
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+        setCommentBubble(null);
+        setCommentPrompt("");
+      }
+    } catch (error) {
+      console.error("Failed to send comment:", error);
+    } finally {
+      setSendingComment(false);
+    }
+  }
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      const bubble = document.getElementById("comment-bubble");
+      if (bubble && !bubble.contains(e.target as Node)) {
+        setCommentBubble(null);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, []);
 
 
   return (
@@ -331,7 +395,7 @@ function DocsPage() {
                 {editing ? (
                   <RichEditor content={openDoc.content} onChange={handleChange} placeholder="Start writing…" />
                 ) : (
-                  <div style={{ padding: "40px 56px", maxWidth: "820px" }}>
+                  <div style={{ padding: "40px 56px", maxWidth: "820px" }} onMouseUp={handleTextSelection}>
                     <MarkdownView content={openDoc.content} />
                   </div>
                 )}
@@ -347,6 +411,86 @@ function DocsPage() {
           )}
         </div>
       </div>
+
+      {/* Comment bubble */}
+      {commentBubble && (
+        <div
+          id="comment-bubble"
+          style={{
+            position: "fixed",
+            left: `${commentBubble.x}px`,
+            top: `${commentBubble.y}px`,
+            transform: "translateX(-50%)",
+            background: "var(--bg-card-elevated)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "8px",
+            padding: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 1000,
+            minWidth: "280px"
+          }}
+        >
+          <textarea
+            value={commentPrompt}
+            onChange={e => setCommentPrompt(e.target.value)}
+            placeholder="Ask Anya..."
+            autoFocus
+            style={{
+              width: "100%",
+              minHeight: "60px",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "6px",
+              padding: "8px",
+              color: "var(--text-primary)",
+              fontSize: "13px",
+              outline: "none",
+              resize: "vertical",
+              marginBottom: "8px"
+            }}
+          />
+          <button
+            onClick={sendComment}
+            disabled={!commentPrompt.trim() || sendingComment}
+            style={{
+              background: "var(--text-primary)",
+              border: "none",
+              borderRadius: "6px",
+              padding: "6px 16px",
+              color: "var(--bg-app)",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: commentPrompt.trim() ? "pointer" : "not-allowed",
+              opacity: commentPrompt.trim() ? 1 : 0.5,
+              width: "100%"
+            }}
+          >
+            {sendingComment ? "Sending..." : "Ask Anya"}
+          </button>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {showToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            background: "var(--bg-card-elevated)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "8px",
+            padding: "12px 20px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 1001,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          <span style={{ color: "var(--text-primary)", fontSize: "14px" }}>Sent to Anya ✓</span>
+        </div>
+      )}
 
       <style>{MARKDOWN_STYLES}</style>
     </div>
