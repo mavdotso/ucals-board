@@ -10,11 +10,11 @@ import { marked } from "marked";
 
 type BoardFilter = "all" | "marketing" | "product";
 
-const AGENT_COLORS: Record<string, string> = {
-  aria: "#BD632F", maya: "#A4243B", leo: "#D8973C",
-  sage: "#5C8A6C", rex: "#6B8A9C", anya: "#8B7CF6", vlad: "#A5A4A0",
+// Folder tree structure type
+type FolderTree = {
+  folders: Record<string, typeof allDocs>;
+  files: typeof allDocs;
 };
-const AGENT_ORDER = ["aria", "maya", "leo", "sage", "rex", "anya", "vlad"];
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -89,22 +89,36 @@ function DocsPage() {
     ? filteredDocs.filter(d => d.title.toLowerCase().includes(searchLower))
     : filteredDocs;
 
-  // Group by agent
-  const grouped: Record<string, typeof allDocs> = {};
+  // Build folder tree from paths
+  const tree: FolderTree = { folders: {}, files: [] };
   for (const doc of visibleDocs) {
-    const agent = doc.agent ?? "unknown";
-    if (!grouped[agent]) grouped[agent] = [];
-    grouped[agent].push(doc);
+    if (!doc.path) {
+      tree.files.push(doc);
+      continue;
+    }
+    const pathParts = doc.path.split('/');
+    if (pathParts.length === 1) {
+      // No folder, just a file at root
+      tree.files.push(doc);
+    } else {
+      // Has folder
+      const folder = pathParts[0];
+      if (!tree.folders[folder]) tree.folders[folder] = [];
+      tree.folders[folder].push(doc);
+    }
   }
 
-  // Sort agents: known order first, then unknown
-  const agentKeys = [
-    ...AGENT_ORDER.filter(a => grouped[a]),
-    ...Object.keys(grouped).filter(a => !AGENT_ORDER.includes(a)),
-  ];
+  // Sort folders alphabetically
+  const folderKeys = Object.keys(tree.folders).sort();
 
-  function toggleCollapse(agent: string) {
-    setCollapsed(prev => ({ ...prev, [agent]: !prev[agent] }));
+  // Sort files within each folder by updatedAt desc
+  for (const folder of folderKeys) {
+    tree.folders[folder].sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+  tree.files.sort((a, b) => b.updatedAt - a.updatedAt);
+
+  function toggleCollapse(folder: string) {
+    setCollapsed(prev => ({ ...prev, [folder]: !prev[folder] }));
   }
 
   async function createDoc() {
@@ -138,7 +152,6 @@ function DocsPage() {
     await save({ id: openId, title });
   }
 
-  const agentColor = openDoc?.agent ? (AGENT_COLORS[openDoc.agent] ?? "var(--text-muted)") : "var(--text-muted)";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
@@ -190,54 +203,83 @@ function DocsPage() {
           width: "240px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)",
           background: "var(--bg-secondary)", overflowY: "auto", padding: "12px 0",
         }}>
-          {agentKeys.length === 0 ? (
+          {visibleDocs.length === 0 ? (
             <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>
               {search ? "No results" : "No documents"}
             </div>
-          ) : agentKeys.map(agent => {
-            const docs = grouped[agent];
-            const color = AGENT_COLORS[agent] ?? "var(--text-muted)";
-            const isCollapsed = collapsed[agent] ?? false;
-            return (
-              <div key={agent}>
-                {/* Agent header */}
-                <button
-                  onClick={() => toggleCollapse(agent)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: "8px",
-                    padding: "6px 16px", background: "none", border: "none",
-                    cursor: "pointer", textAlign: "left",
-                  }}
-                >
-                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: color, flexShrink: 0 }} />
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)", textTransform: "capitalize", flex: 1, letterSpacing: "0.04em" }}>{agent}</span>
-                  <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--bg-card)", borderRadius: "4px", padding: "1px 5px" }}>{docs.length}</span>
-                  <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "2px" }}>{isCollapsed ? "›" : "‹"}</span>
-                </button>
-                {/* Doc list */}
-                {!isCollapsed && docs.map(doc => {
-                  const isActive = openId === doc._id;
-                  return (
+          ) : (
+            <>
+              {/* Render folders */}
+              {folderKeys.map(folder => {
+                const docs = tree.folders[folder];
+                const isCollapsed = collapsed[folder] ?? false;
+                return (
+                  <div key={folder}>
+                    {/* Folder header */}
                     <button
-                      key={doc._id}
-                      onClick={() => setOpenId(doc._id)}
+                      onClick={() => toggleCollapse(folder)}
                       style={{
-                        width: "100%", display: "block", textAlign: "left",
-                        padding: "5px 16px 5px 32px", background: isActive ? "var(--bg-card-elevated)" : "none",
-                        border: "none", borderLeft: isActive ? `2px solid ${color}` : "2px solid transparent",
-                        cursor: "pointer", color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                        fontSize: "12px", lineHeight: 1.4,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        width: "100%", display: "flex", alignItems: "center", gap: "8px",
+                        padding: "6px 16px", background: "none", border: "none",
+                        cursor: "pointer", textAlign: "left",
                       }}
-                      title={doc.title}
                     >
-                      {doc.title}
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{isCollapsed ? "▸" : "▾"}</span>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)", textTransform: "capitalize", flex: 1, letterSpacing: "0.04em" }}>{folder}</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--bg-card)", borderRadius: "4px", padding: "1px 5px" }}>{docs.length}</span>
                     </button>
-                  );
-                })}
-              </div>
-            );
-          })}
+                    {/* Doc list */}
+                    {!isCollapsed && docs.map(doc => {
+                      const isActive = openId === doc._id;
+                      return (
+                        <button
+                          key={doc._id}
+                          onClick={() => setOpenId(doc._id)}
+                          style={{
+                            width: "100%", display: "block", textAlign: "left",
+                            padding: "5px 16px 5px 32px", background: isActive ? "var(--bg-card-elevated)" : "none",
+                            border: "none", borderLeft: isActive ? "2px solid var(--border-default)" : "2px solid transparent",
+                            cursor: "pointer", color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                            fontSize: "12px", lineHeight: 1.4,
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}
+                          title={doc.title}
+                        >
+                          {doc.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+
+              {/* Render root files (no folder) */}
+              {tree.files.length > 0 && (
+                <div>
+                  {tree.files.map(doc => {
+                    const isActive = openId === doc._id;
+                    return (
+                      <button
+                        key={doc._id}
+                        onClick={() => setOpenId(doc._id)}
+                        style={{
+                          width: "100%", display: "block", textAlign: "left",
+                          padding: "5px 16px", background: isActive ? "var(--bg-card-elevated)" : "none",
+                          border: "none", borderLeft: isActive ? "2px solid var(--border-default)" : "2px solid transparent",
+                          cursor: "pointer", color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                          fontSize: "12px", lineHeight: 1.4,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}
+                        title={doc.title}
+                      >
+                        {doc.title}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* RIGHT PANEL */}
@@ -251,11 +293,6 @@ function DocsPage() {
                 justifyContent: "space-between", background: "var(--bg-secondary)", flexShrink: 0, gap: "16px",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                  {openDoc.agent && (
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: agentColor, textTransform: "capitalize", flexShrink: 0 }}>
-                      {openDoc.agent}
-                    </span>
-                  )}
                   {editingTitle ? (
                     <input autoFocus defaultValue={openDoc.title}
                       onBlur={e => handleTitleSave(e.target.value)}
