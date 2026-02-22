@@ -114,4 +114,16 @@ export default defineSchema({
     .index("by_board", ["board", "scheduledAt"])
     .index("by_status", ["board", "status"])
     .index("by_scheduled", ["scheduledAt"]),
+
+  boardNodes: defineTable({
+    type: v.literal("note"),
+    x: v.number(),
+    y: v.number(),
+    width: v.number(),
+    height: v.number(),
+    content: v.string(),
+    color: v.union(v.literal("yellow"), v.literal("blue"), v.literal("green"), v.literal("pink")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
 });
