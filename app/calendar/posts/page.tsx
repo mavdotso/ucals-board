@@ -98,14 +98,16 @@ export default function PostsKanbanPage() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>posts</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
+          <Link href="/board" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>board</Link>
           <span style={{ color: "var(--border-default)", fontSize: "12px", margin: "0 4px" }}>|</span>
           <div style={{ display: "flex", gap: "4px" }}>
             {(["marketing", "product"] as Board[]).map((b) => (

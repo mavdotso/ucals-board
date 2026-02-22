@@ -201,10 +201,14 @@ export default function StackPage() {
       <header style={{ borderBottom: "1px solid var(--border-subtle)", padding: "0 24px", height: "52px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-secondary)", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
           <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>stack</span>
+          <span style={{ color: "var(--border-default)" }}>/</span>
+          <Link href="/calendar" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>calendar</Link>
+          <span style={{ color: "var(--border-default)" }}>/</span>
+          <Link href="/board" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>board</Link>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           {totalMonthlyCost > 0 && (
