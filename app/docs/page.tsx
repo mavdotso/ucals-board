@@ -242,7 +242,7 @@ function DocsPage() {
                     onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
                   >
                     <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
+                    <div title={folderLabel(folder)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{folderMap[folder].length} files</div>
                   </div>
                 ))}
@@ -253,7 +253,7 @@ function DocsPage() {
                     onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
                   >
                     <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                    <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
                   </div>
                 ))}
@@ -284,7 +284,7 @@ function DocsPage() {
                 onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
               >
                 <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
               </div>
             ))}
