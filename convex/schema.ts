@@ -115,6 +115,27 @@ export default defineSchema({
     .index("by_status", ["board", "status"])
     .index("by_scheduled", ["scheduledAt"]),
 
+  pipelines: defineTable({
+    name: v.string(),
+    status: v.union(v.literal("running"), v.literal("complete"), v.literal("failed")),
+    inputUrl: v.string(),
+    competitorName: v.optional(v.string()),
+    stages: v.array(v.object({
+      stage: v.number(),
+      name: v.string(),
+      agent: v.string(),
+      status: v.union(v.literal("idle"), v.literal("running"), v.literal("complete"), v.literal("failed")),
+      jobId: v.optional(v.string()),
+      docPath: v.optional(v.string()),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"]),
+
   boardNodes: defineTable({
     type: v.literal("note"),
     x: v.number(),

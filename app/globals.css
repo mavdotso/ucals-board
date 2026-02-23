@@ -17,6 +17,18 @@
   --teal: #273E47;
 }
 
+[data-theme="light"] {
+  --bg-app: #F9F8F6;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-elevated: #F0EEE9;
+  --text-primary: #1A1918;
+  --text-secondary: #4A4845;
+  --text-muted: #9A9896;
+  --border-default: #D8D5CF;
+  --border-subtle: #E8E5DF;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
