@@ -21,28 +21,8 @@ type Doc = {
   cardId?: Id<"cards">;
 };
 
-const FOLDER_LABELS: Record<string, string> = {
-  aria: "Strategy",
-  maya: "Copy",
-  leo: "Social",
-  sage: "SEO",
-  rex: "Finance",
-  jessica: "Outreach",
-  nova: "Creative",
-  campaign: "Campaigns",
-  vlad: "Vlad",
-};
-
 function folderLabel(name: string) {
-  return FOLDER_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
-}
-
-function folderIcon(name: string) {
-  const icons: Record<string, string> = {
-    aria: "🧠", maya: "✍️", leo: "📣", sage: "🔍",
-    rex: "📊", jessica: "🤝", nova: "🎨", campaign: "🚀", vlad: "👤",
-  };
-  return icons[name] ?? "📁";
+  return name.charAt(0).toUpperCase() + name.slice(1).replace(/-/g, " ");
 }
 
 function formatDate(ts: number) {
@@ -194,7 +174,7 @@ function DocsPage() {
               onClick={() => { setOpenDocState(null); setEditing(false); }}
               style={{ cursor: openDoc ? "pointer" : "default", color: openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: openDoc ? 400 : 600 }}
             >
-              {folderIcon(currentFolder)} {folderLabel(currentFolder)}
+              📁 {folderLabel(currentFolder)}
             </span>
           </>
         )}
@@ -253,40 +233,30 @@ function DocsPage() {
               </div>
             </div>
           ) : (
-            // Folder grid
-            <div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Folders</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "12px", marginBottom: "40px" }}>
+            // Folder + file grid
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
                 {folders.map(folder => (
                   <div key={folder} onClick={() => setCurrentFolder(folder)}
                     style={{ padding: "20px 16px", borderRadius: "10px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", cursor: "pointer", transition: "border-color 0.15s" }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
                   >
-                    <div style={{ fontSize: "28px", marginBottom: "10px" }}>{folderIcon(folder)}</div>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>{folderLabel(folder)}</div>
+                    <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{folderMap[folder].length} files</div>
                   </div>
                 ))}
-              </div>
-              {rootFiles.length > 0 && (
-                <>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Root files</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    {rootFiles.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
-                      <div key={doc._id} onClick={() => setOpenDocState(doc)}
-                        style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "8px", cursor: "pointer", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
-                      >
-                        <span>📄</span>
-                        <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)" }}>{doc.title}</span>
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</span>
-                      </div>
-                    ))}
+                {rootFiles.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
+                  <div key={doc._id} onClick={() => setOpenDocState(doc)}
+                    style={{ padding: "20px 16px", borderRadius: "10px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", cursor: "pointer", transition: "border-color 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                  >
+                    <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
                   </div>
-                </>
-              )}
+                ))}
             </div>
           )}
         </div>
@@ -306,24 +276,16 @@ function DocsPage() {
         </>} />
         <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
           <Breadcrumb />
-          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            {currentFiles.length} file{currentFiles.length !== 1 ? "s" : ""}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
             {currentFiles.map(doc => (
               <div key={doc._id} onClick={() => setOpenDocState(doc)}
-                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderRadius: "8px", cursor: "pointer", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", transition: "border-color 0.15s" }}
+                style={{ padding: "20px 16px", borderRadius: "10px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", cursor: "pointer", transition: "border-color 0.15s" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
               >
-                <span style={{ fontSize: "16px" }}>📄</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {doc.path.split("/").slice(1).join("/")}
-                  </div>
-                </div>
-                <span style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0 }}>{formatDate(doc.updatedAt)}</span>
+                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
               </div>
             ))}
           </div>
