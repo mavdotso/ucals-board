@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { RichEditor } from "@/app/components/editor/RichEditor";
@@ -10,7 +10,6 @@ import { marked } from "marked";
 
 type BoardFilter = "all" | "marketing" | "product";
 
-// Folder tree structure type
 type Doc = {
   _id: Id<"docs">;
   path: string;
@@ -21,18 +20,33 @@ type Doc = {
   updatedAt: number;
   cardId?: Id<"cards">;
 };
-type FolderTree = {
-  folders: Record<string, Doc[]>;
-  files: Doc[];
+
+const FOLDER_LABELS: Record<string, string> = {
+  aria: "Strategy",
+  maya: "Copy",
+  leo: "Social",
+  sage: "SEO",
+  rex: "Finance",
+  jessica: "Outreach",
+  nova: "Creative",
+  campaign: "Campaigns",
+  vlad: "Vlad",
 };
 
-function formatDate(ts: number) {
-  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function folderLabel(name: string) {
+  return FOLDER_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-function MarkdownView({ content }: { content: string }) {
-  const html = marked.parse(content, { async: false }) as string;
-  return <div className="markdown-body" dangerouslySetInnerHTML={{ __html: html }} />;
+function folderIcon(name: string) {
+  const icons: Record<string, string> = {
+    aria: "🧠", maya: "✍️", leo: "📣", sage: "🔍",
+    rex: "📊", jessica: "🤝", nova: "🎨", campaign: "🚀", vlad: "👤",
+  };
+  return icons[name] ?? "📁";
+}
+
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 const MARKDOWN_STYLES = `
@@ -40,19 +54,16 @@ const MARKDOWN_STYLES = `
   .markdown-body h1 { font-size: 1.6em; font-weight: 700; margin: 0 0 18px; color: var(--text-primary); }
   .markdown-body h2 { font-size: 1.3em; font-weight: 600; margin: 36px 0 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px; }
   .markdown-body h3 { font-size: 1.1em; font-weight: 600; margin: 28px 0 8px; color: var(--text-primary); }
-  .markdown-body h4 { font-size: 1em; font-weight: 600; margin: 20px 0 6px; color: var(--text-primary); }
   .markdown-body p { margin: 0 0 16px; }
   .markdown-body ul, .markdown-body ol { margin: 0 0 16px; padding-left: 24px; }
   .markdown-body li { margin-bottom: 6px; }
-  .markdown-body li > ul, .markdown-body li > ol { margin-top: 4px; margin-bottom: 0; }
   .markdown-body code { background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 1px 6px; font-size: 13px; font-family: monospace; color: var(--text-primary); }
   .markdown-body pre { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 18px; overflow-x: auto; margin: 0 0 18px; }
-  .markdown-body pre code { background: none; border: none; padding: 0; font-size: 13px; line-height: 1.6; }
+  .markdown-body pre code { background: none; border: none; padding: 0; font-size: 13px; }
   .markdown-body blockquote { border-left: 3px solid var(--border-default); margin: 0 0 16px; padding: 4px 18px; color: var(--text-muted); }
   .markdown-body table { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 13px; }
-  .markdown-body th { background: var(--bg-card); border: 1px solid var(--border-subtle); padding: 9px 14px; text-align: left; font-weight: 600; color: var(--text-primary); }
+  .markdown-body th { background: var(--bg-card); border: 1px solid var(--border-subtle); padding: 9px 14px; text-align: left; font-weight: 600; }
   .markdown-body td { border: 1px solid var(--border-subtle); padding: 9px 14px; }
-  .markdown-body tr:nth-child(even) td { background: var(--bg-card); }
   .markdown-body a { color: var(--text-primary); text-decoration: underline; }
   .markdown-body hr { border: none; border-top: 1px solid var(--border-subtle); margin: 28px 0; }
   .markdown-body strong { color: var(--text-primary); font-weight: 600; }
@@ -63,122 +74,75 @@ export default function DocsPageWrapper() {
 }
 
 function DocsPage() {
-  const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
-  const [openId, setOpenId] = useState<Id<"docs"> | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // View state: null = root, string = folder name, doc = open doc
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [openDoc, setOpenDocState] = useState<Doc | null>(null);
   const [editing, setEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
-  const [editingTitle, setEditingTitle] = useState(false);
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
   const [search, setSearch] = useState("");
-  const [newDocTitle, setNewDocTitle] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [commentBubble, setCommentBubble] = useState<{ x: number; y: number; text: string } | null>(null);
   const [commentPrompt, setCommentPrompt] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const id = searchParams.get("id");
-    if (id) setOpenId(id as Id<"docs">);
-  }, [searchParams]);
-
-  useEffect(() => { setEditing(false); setEditingTitle(false); }, [openId]);
-
-  const allDocs = useQuery(api.docs.listAll) ?? [];
-  const openDoc = useQuery(api.docs.get, openId ? { id: openId } : "skip");
+  const allDocs = (useQuery(api.docs.listAll) ?? []) as Doc[];
   const upsert = useMutation(api.docs.upsert);
   const save = useMutation(api.docs.save);
   const remove = useMutation(api.docs.remove);
 
-  // Filter docs by board
-  const filteredDocs = boardFilter === "all"
-    ? allDocs
-    : allDocs.filter(d => d.board === boardFilter);
+  // Filter by board
+  const filtered = boardFilter === "all" ? allDocs : allDocs.filter(d => d.board === boardFilter);
 
   // Search filter
-  const searchLower = search.toLowerCase();
-  const visibleDocs = search
-    ? filteredDocs.filter(d => d.title.toLowerCase().includes(searchLower))
-    : filteredDocs;
+  const visible = search
+    ? filtered.filter(d => d.title.toLowerCase().includes(search.toLowerCase()) || d.path.toLowerCase().includes(search.toLowerCase()))
+    : filtered;
 
-  // Build folder tree from paths
-  const tree: FolderTree = { folders: {}, files: [] };
-  for (const doc of visibleDocs) {
-    if (!doc.path) {
-      tree.files.push(doc);
-      continue;
-    }
-    const pathParts = doc.path.split('/');
-    if (pathParts.length === 1) {
-      // No folder, just a file at root
-      tree.files.push(doc);
+  // Build folder → docs map
+  const folderMap: Record<string, Doc[]> = {};
+  const rootFiles: Doc[] = [];
+  for (const doc of visible) {
+    const parts = doc.path?.split("/") ?? [];
+    if (parts.length >= 2) {
+      const folder = parts[0];
+      if (!folderMap[folder]) folderMap[folder] = [];
+      folderMap[folder].push(doc);
     } else {
-      // Has folder
-      const folder = pathParts[0];
-      if (!tree.folders[folder]) tree.folders[folder] = [];
-      tree.folders[folder].push(doc);
+      rootFiles.push(doc);
     }
   }
+  const folders = Object.keys(folderMap).sort();
 
-  // Sort folders alphabetically
-  const folderKeys = Object.keys(tree.folders).sort();
-
-  // Sort files within each folder by updatedAt desc
-  for (const folder of folderKeys) {
-    tree.folders[folder].sort((a, b) => b.updatedAt - a.updatedAt);
-  }
-  tree.files.sort((a, b) => b.updatedAt - a.updatedAt);
-
-  function toggleCollapse(folder: string) {
-    setCollapsed(prev => ({ ...prev, [folder]: !prev[folder] }));
-  }
-
-  async function createDoc() {
-    if (!newDocTitle.trim()) return;
-    setCreating(true);
-    const slug = newDocTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
-    const date = new Date().toISOString().slice(0, 10);
-    const path = `vlad/${date}-${slug}.md`;
-    const board = boardFilter === "all" ? "marketing" : boardFilter;
-    const id = await upsert({ path, title: newDocTitle, content: `# ${newDocTitle}\n\n`, agent: "vlad", board });
-    setOpenId(id as Id<"docs">);
-    setNewDocTitle("");
-    setCreating(false);
-    setEditing(true);
-  }
+  // Files in current folder (sorted by date)
+  const currentFiles = currentFolder
+    ? (folderMap[currentFolder] ?? []).sort((a, b) => b.updatedAt - a.updatedAt)
+    : [];
 
   async function handleChange(content: string) {
-    if (!openId) return;
+    if (!openDoc) return;
     setSaveStatus("unsaved");
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       setSaveStatus("saving");
-      await save({ id: openId, content });
+      await save({ id: openDoc._id, content });
       setSaveStatus("saved");
     }, 1000);
   }
 
-  async function handleTitleSave(title: string) {
-    if (!openId || !title.trim()) return;
-    setEditingTitle(false);
-    await save({ id: openId, title });
-  }
-
   async function handleTextSelection() {
-    if (editing) return; // Only active in preview mode
+    if (editing) return;
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
     if (selectedText && selectedText.length > 0) {
       const range = selection?.getRangeAt(0);
       const rect = range?.getBoundingClientRect();
       if (rect) {
-        setCommentBubble({
-          x: rect.left + rect.width / 2,
-          y: rect.top - 10,
-          text: selectedText
-        });
+        setCommentBubble({ x: rect.left + rect.width / 2, y: rect.top - 10, text: selectedText });
         setCommentPrompt("");
       }
     }
@@ -187,320 +151,246 @@ function DocsPage() {
   async function sendComment() {
     if (!commentPrompt.trim() || !commentBubble || !openDoc) return;
     setSendingComment(true);
-
     try {
-      const response = await fetch("https://first-viper-528.convex.site/api/tasks", {
+      await fetch("https://first-viper-528.convex.site/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          board: "business",
-          createdBy: "vlad",
-          assignees: ["anya"],
-          priority: "medium",
+          board: "business", createdBy: "vlad", assignees: ["anya"], priority: "medium",
           title: `[Doc: ${openDoc.title}] ${commentPrompt.slice(0, 60)}`,
-          description: `**Selected text:**\n> ${commentBubble.text}\n\n**Request:**\n${commentPrompt}\n\n**Doc path:** ${openDoc.path || "unknown"}`
-        })
+          description: `**Selected text:**\n> ${commentBubble.text}\n\n**Request:**\n${commentPrompt}\n\n**Doc path:** ${openDoc.path}`,
+        }),
       });
-
-      if (response.ok) {
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        setCommentBubble(null);
-        setCommentPrompt("");
-      }
-    } catch (error) {
-      console.error("Failed to send comment:", error);
-    } finally {
-      setSendingComment(false);
-    }
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+      setCommentBubble(null);
+    } catch (e) { console.error(e); }
+    finally { setSendingComment(false); }
   }
 
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       const bubble = document.getElementById("comment-bubble");
-      if (bubble && !bubble.contains(e.target as Node)) {
-        setCommentBubble(null);
-      }
+      if (bubble && !bubble.contains(e.target as Node)) setCommentBubble(null);
     };
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
-      {/* Header */}
-      <Nav active="/docs" right={<>
-        {(["all", "marketing", "product"] as BoardFilter[]).map(b => (
-          <button key={b} onClick={() => setBoardFilter(b)} style={{
-            background: boardFilter === b ? "var(--bg-card-elevated)" : "none",
-            border: boardFilter === b ? "1px solid var(--border-default)" : "1px solid transparent",
-            borderRadius: "6px", padding: "3px 10px",
-            color: boardFilter === b ? "var(--text-primary)" : "var(--text-muted)",
-            fontSize: "12px", fontWeight: boardFilter === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
-          }}>{b}</button>
-        ))}
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "140px" }}
-        />
-        <input value={newDocTitle} onChange={e => setNewDocTitle(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") createDoc(); }}
-          placeholder="New document…"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "150px" }}
-        />
-        <button onClick={createDoc} disabled={!newDocTitle.trim() || creating} style={{
-          background: "var(--text-primary)", border: "none", borderRadius: "6px",
-          padding: "5px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600,
-          cursor: newDocTitle.trim() ? "pointer" : "not-allowed", opacity: newDocTitle.trim() ? 1 : 0.4,
-        }}>+ New</button>
-      </>} />
-
-      {/* Body: Sidebar + Panel */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-        {/* LEFT SIDEBAR */}
-        <div style={{
-          width: "240px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)",
-          background: "var(--bg-secondary)", overflowY: "auto", padding: "12px 0",
-        }}>
-          {visibleDocs.length === 0 ? (
-            <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>
-              {search ? "No results" : "No documents"}
-            </div>
-          ) : (
-            <>
-              {/* Render folders */}
-              {folderKeys.map(folder => {
-                const docs = tree.folders[folder];
-                const isCollapsed = collapsed[folder] ?? false;
-                return (
-                  <div key={folder}>
-                    {/* Folder header */}
-                    <button
-                      onClick={() => toggleCollapse(folder)}
-                      style={{
-                        width: "100%", display: "flex", alignItems: "center", gap: "8px",
-                        padding: "6px 16px", background: "none", border: "none",
-                        cursor: "pointer", textAlign: "left",
-                      }}
-                    >
-                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{isCollapsed ? "▸" : "▾"}</span>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)", flex: 1, letterSpacing: "0.04em" }}>
-                        {({
-                          aria: "🧠 Strategy",
-                          maya: "✍️ Copy",
-                          leo: "📣 Social",
-                          sage: "🔍 SEO",
-                          rex: "📊 Finance",
-                          jessica: "🤝 Outreach",
-                          nova: "🎨 Creative",
-                          campaign: "🚀 Campaigns",
-                          vlad: "👤 Vlad",
-                        } as Record<string, string>)[folder] ?? `📁 ${folder.charAt(0).toUpperCase() + folder.slice(1)}`}
-                      </span>
-                      <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--bg-card)", borderRadius: "4px", padding: "1px 5px" }}>{docs.length}</span>
-                    </button>
-                    {/* Doc list */}
-                    {!isCollapsed && docs.map(doc => {
-                      const isActive = openId === doc._id;
-                      return (
-                        <button
-                          key={doc._id}
-                          onClick={() => setOpenId(doc._id)}
-                          style={{
-                            width: "100%", display: "block", textAlign: "left",
-                            padding: "5px 16px 5px 32px", background: isActive ? "var(--bg-card-elevated)" : "none",
-                            border: "none", borderLeft: isActive ? "2px solid var(--border-default)" : "2px solid transparent",
-                            cursor: "pointer", color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                            fontSize: "12px", lineHeight: 1.4,
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          }}
-                          title={doc.title}
-                        >
-                          {doc.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-
-              {/* Render root files (no folder) */}
-              {tree.files.length > 0 && (
-                <div>
-                  {tree.files.map(doc => {
-                    const isActive = openId === doc._id;
-                    return (
-                      <button
-                        key={doc._id}
-                        onClick={() => setOpenId(doc._id)}
-                        style={{
-                          width: "100%", display: "block", textAlign: "left",
-                          padding: "5px 16px", background: isActive ? "var(--bg-card-elevated)" : "none",
-                          border: "none", borderLeft: isActive ? "2px solid var(--border-default)" : "2px solid transparent",
-                          cursor: "pointer", color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                          fontSize: "12px", lineHeight: 1.4,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        }}
-                        title={doc.title}
-                      >
-                        {doc.title}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* RIGHT PANEL */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {openId && openDoc ? (
-            <>
-              {/* Panel header */}
-              <div style={{
-                borderBottom: "1px solid var(--border-subtle)", padding: "0 24px",
-                height: "48px", display: "flex", alignItems: "center",
-                justifyContent: "space-between", background: "var(--bg-secondary)", flexShrink: 0, gap: "16px",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                  {editingTitle ? (
-                    <input autoFocus defaultValue={openDoc.title}
-                      onBlur={e => handleTitleSave(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") handleTitleSave((e.target as HTMLInputElement).value); if (e.key === "Escape") setEditingTitle(false); }}
-                      style={{ fontSize: "13px", background: "none", border: "none", borderBottom: "1px solid var(--border-default)", color: "var(--text-primary)", outline: "none", minWidth: "200px" }}
-                    />
-                  ) : (
-                    <span
-                      onClick={() => setEditingTitle(true)}
-                      style={{ fontSize: "13px", color: "var(--text-primary)", cursor: "text", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                      title={openDoc.title}
-                    >
-                      {openDoc.title}
-                    </span>
-                  )}
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0 }}>{formatDate(openDoc.updatedAt)}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                  {saveStatus !== "saved" && (
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{saveStatus === "saving" ? "Saving…" : "●"}</span>
-                  )}
-                  <button onClick={() => setEditing(e => !e)} style={{
-                    background: editing ? "var(--bg-card-elevated)" : "none",
-                    border: `1px solid ${editing ? "var(--border-default)" : "var(--border-subtle)"}`,
-                    borderRadius: "6px", padding: "4px 14px", fontSize: "12px",
-                    color: editing ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
-                  }}>{editing ? "Preview" : "Edit"}</button>
-                  <button onClick={async () => {
-                    if (confirm(`Delete "${openDoc.title}"?`)) { await remove({ id: openDoc._id }); setOpenId(null); }
-                  }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "12px" }}>Delete</button>
-                </div>
-              </div>
-
-              {/* Panel content */}
-              <div style={{ flex: 1, overflowY: "auto" }}>
-                {editing ? (
-                  <RichEditor content={openDoc.content} onChange={handleChange} placeholder="Start writing…" />
-                ) : (
-                  <div style={{ padding: "40px 56px", maxWidth: "820px" }} onMouseUp={handleTextSelection}>
-                    <MarkdownView content={openDoc.content} />
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            /* Empty state */
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "10px", color: "var(--text-muted)" }}>
-              <div style={{ fontSize: "28px" }}>📄</div>
-              <div style={{ fontSize: "14px" }}>Select a document</div>
-              <div style={{ fontSize: "12px", opacity: 0.7 }}>{allDocs.length} document{allDocs.length !== 1 ? "s" : ""} available</div>
-            </div>
-          )}
-        </div>
+  // Breadcrumb
+  function Breadcrumb() {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", marginBottom: "24px" }}>
+        <span
+          onClick={() => { setCurrentFolder(null); setOpenDocState(null); setEditing(false); }}
+          style={{ cursor: "pointer", color: currentFolder || openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: currentFolder || openDoc ? 400 : 600 }}
+        >
+          All files
+        </span>
+        {currentFolder && (
+          <>
+            <span>/</span>
+            <span
+              onClick={() => { setOpenDocState(null); setEditing(false); }}
+              style={{ cursor: openDoc ? "pointer" : "default", color: openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: openDoc ? 400 : 600 }}
+            >
+              {folderIcon(currentFolder)} {folderLabel(currentFolder)}
+            </span>
+          </>
+        )}
+        {openDoc && (
+          <>
+            <span>/</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{openDoc.title}</span>
+          </>
+        )}
       </div>
+    );
+  }
 
-      {/* Comment bubble */}
-      {commentBubble && (
-        <div
-          id="comment-bubble"
-          style={{
-            position: "fixed",
-            left: `${commentBubble.x}px`,
-            top: `${commentBubble.y}px`,
-            transform: "translateX(-50%)",
-            background: "var(--bg-card-elevated)",
-            border: "1px solid var(--border-default)",
-            borderRadius: "8px",
-            padding: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            zIndex: 1000,
-            minWidth: "280px"
-          }}
-        >
-          <textarea
-            value={commentPrompt}
-            onChange={e => setCommentPrompt(e.target.value)}
-            placeholder="Ask Anya..."
-            autoFocus
-            style={{
-              width: "100%",
-              minHeight: "60px",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "6px",
-              padding: "8px",
-              color: "var(--text-primary)",
-              fontSize: "13px",
-              outline: "none",
-              resize: "vertical",
-              marginBottom: "8px"
-            }}
+  // ROOT VIEW — folder grid
+  if (!currentFolder && !openDoc) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
+        <Nav active="/docs" right={<>
+          {(["all", "marketing", "product"] as BoardFilter[]).map(b => (
+            <button key={b} onClick={() => setBoardFilter(b)} style={{
+              background: boardFilter === b ? "var(--bg-card-elevated)" : "none",
+              border: boardFilter === b ? "1px solid var(--border-default)" : "1px solid transparent",
+              borderRadius: "6px", padding: "3px 10px",
+              color: boardFilter === b ? "var(--text-primary)" : "var(--text-muted)",
+              fontSize: "12px", fontWeight: boardFilter === b ? 600 : 400, cursor: "pointer",
+            }}>{b}</button>
+          ))}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "160px" }}
           />
-          <button
-            onClick={sendComment}
-            disabled={!commentPrompt.trim() || sendingComment}
-            style={{
-              background: "var(--text-primary)",
-              border: "none",
-              borderRadius: "6px",
-              padding: "6px 16px",
-              color: "var(--bg-app)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: commentPrompt.trim() ? "pointer" : "not-allowed",
-              opacity: commentPrompt.trim() ? 1 : 0.5,
-              width: "100%"
-            }}
-          >
-            {sendingComment ? "Sending..." : "Ask Anya"}
-          </button>
-        </div>
-      )}
+        </>} />
+        <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
+          <Breadcrumb />
 
-      {/* Toast notification */}
-      {showToast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            background: "var(--bg-card-elevated)",
-            border: "1px solid var(--border-default)",
-            borderRadius: "8px",
-            padding: "12px 20px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            zIndex: 1001,
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}
-        >
-          <span style={{ color: "var(--text-primary)", fontSize: "14px" }}>Sent to Anya ✓</span>
+          {search ? (
+            // Search results — flat list
+            <div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {visible.length} result{visible.length !== 1 ? "s" : ""}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {visible.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
+                  <div key={doc._id} onClick={() => { const f = doc.path?.split("/")[0]; setCurrentFolder(f ?? null); setOpenDocState(doc); }}
+                    style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "8px", cursor: "pointer", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", marginBottom: "4px" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                  >
+                    <span style={{ fontSize: "16px" }}>📄</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{doc.path}</div>
+                    </div>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0 }}>{formatDate(doc.updatedAt)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            // Folder grid
+            <div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Folders</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "12px", marginBottom: "40px" }}>
+                {folders.map(folder => (
+                  <div key={folder} onClick={() => setCurrentFolder(folder)}
+                    style={{ padding: "20px 16px", borderRadius: "10px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", cursor: "pointer", transition: "border-color 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                  >
+                    <div style={{ fontSize: "28px", marginBottom: "10px" }}>{folderIcon(folder)}</div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>{folderLabel(folder)}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{folderMap[folder].length} files</div>
+                  </div>
+                ))}
+              </div>
+              {rootFiles.length > 0 && (
+                <>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Root files</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {rootFiles.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
+                      <div key={doc._id} onClick={() => setOpenDocState(doc)}
+                        style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "8px", cursor: "pointer", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                      >
+                        <span>📄</span>
+                        <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)" }}>{doc.title}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        <style>{MARKDOWN_STYLES}</style>
+      </div>
+    );
+  }
 
-      <style>{MARKDOWN_STYLES}</style>
-    </div>
-  );
+  // FOLDER VIEW — file list
+  if (currentFolder && !openDoc) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
+        <Nav active="/docs" right={<>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "160px" }}
+          />
+        </>} />
+        <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
+          <Breadcrumb />
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            {currentFiles.length} file{currentFiles.length !== 1 ? "s" : ""}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            {currentFiles.map(doc => (
+              <div key={doc._id} onClick={() => setOpenDocState(doc)}
+                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderRadius: "8px", cursor: "pointer", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", transition: "border-color 0.15s" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+              >
+                <span style={{ fontSize: "16px" }}>📄</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {doc.path.split("/").slice(1).join("/")}
+                  </div>
+                </div>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0 }}>{formatDate(doc.updatedAt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <style>{MARKDOWN_STYLES}</style>
+      </div>
+    );
+  }
+
+  // DOC VIEW — full screen reader/editor
+  if (openDoc) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
+        <Nav active="/docs" right={<>
+          {saveStatus !== "saved" && <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{saveStatus === "saving" ? "Saving…" : "●"}</span>}
+          <button onClick={() => setEditing(e => !e)} style={{
+            background: editing ? "var(--bg-card-elevated)" : "none",
+            border: `1px solid ${editing ? "var(--border-default)" : "var(--border-subtle)"}`,
+            borderRadius: "6px", padding: "4px 14px", fontSize: "12px",
+            color: editing ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
+          }}>{editing ? "Preview" : "Edit"}</button>
+          <button onClick={async () => {
+            if (confirm(`Delete "${openDoc.title}"?`)) { await remove({ id: openDoc._id }); setOpenDocState(null); }
+          }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "12px" }}>Delete</button>
+        </>} />
+        <div style={{ flex: 1, overflowY: "auto", padding: "40px 0" }}>
+          <div style={{ maxWidth: "760px", margin: "0 auto", padding: "0 40px" }}>
+            <Breadcrumb />
+            <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>{openDoc.title}</h1>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "32px" }}>Updated {formatDate(openDoc.updatedAt)}</div>
+            {editing ? (
+              <RichEditor content={openDoc.content} onChange={handleChange} placeholder="Start writing…" />
+            ) : (
+              <div onMouseUp={handleTextSelection}>
+                <div className="markdown-body" dangerouslySetInnerHTML={{ __html: marked.parse(openDoc.content, { async: false }) as string }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Select-and-comment bubble */}
+        {commentBubble && (
+          <div id="comment-bubble" style={{
+            position: "fixed", left: commentBubble.x, top: commentBubble.y, transform: "translateX(-50%) translateY(-100%)",
+            background: "var(--bg-card-elevated)", border: "1px solid var(--border-default)", borderRadius: "8px",
+            padding: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.2)", zIndex: 1000, minWidth: "280px",
+          }}>
+            <textarea value={commentPrompt} onChange={e => setCommentPrompt(e.target.value)} placeholder="Ask Anya…" autoFocus
+              style={{ width: "100%", minHeight: "60px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "8px", color: "var(--text-primary)", fontSize: "13px", outline: "none", resize: "vertical", marginBottom: "8px", boxSizing: "border-box" }}
+            />
+            <button onClick={sendComment} disabled={!commentPrompt.trim() || sendingComment}
+              style={{ background: "var(--text-primary)", border: "none", borderRadius: "6px", padding: "6px 16px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600, cursor: "pointer", width: "100%", opacity: commentPrompt.trim() ? 1 : 0.5 }}>
+              {sendingComment ? "Sending…" : "Ask Anya"}
+            </button>
+          </div>
+        )}
+
+        {showToast && (
+          <div style={{ position: "fixed", bottom: "24px", right: "24px", background: "var(--bg-card-elevated)", border: "1px solid var(--border-default)", borderRadius: "8px", padding: "12px 20px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 1001 }}>
+            <span style={{ color: "var(--text-primary)", fontSize: "14px" }}>Sent to Anya ✓</span>
+          </div>
+        )}
+
+        <style>{MARKDOWN_STYLES}</style>
+      </div>
+    );
+  }
+
+  return null;
 }
