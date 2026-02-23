@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { RichEditor } from "@/app/components/editor/RichEditor";
@@ -76,8 +76,13 @@ export default function DocsPageWrapper() {
 }
 
 function DocsPage() {
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
-  const [openDoc, setOpenDoc] = useState<Doc | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URL-driven navigation: ?folder=seo, ?doc=<id>
+  const currentFolder = searchParams.get("folder");
+  const openDocId = searchParams.get("doc") as Id<"docs"> | null;
+
   const [editing, setEditing] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [boardFilter, setBoardFilter] = useState<BoardFilter>("all");
@@ -94,6 +99,15 @@ function DocsPage() {
   const upsert = useMutation(api.docs.upsert);
   const save = useMutation(api.docs.save);
   const remove = useMutation(api.docs.remove);
+
+  const openDoc = openDocId ? (allDocs.find(d => d._id === openDocId) ?? null) : null;
+
+  // Reset editing when navigating away from a doc
+  useEffect(() => { if (!openDocId) setEditing(false); }, [openDocId]);
+
+  function navRoot() { router.push("/docs"); }
+  function navFolder(f: string) { router.push(`/docs?folder=${encodeURIComponent(f)}`); }
+  function navDoc(doc: Doc) { router.push(`/docs?folder=${encodeURIComponent(doc.path.split("/")[0])}&doc=${doc._id}`); }
 
   const filtered = boardFilter === "all" ? allDocs : allDocs.filter(d => d.board === boardFilter);
   const visible = search
@@ -121,7 +135,7 @@ function DocsPage() {
     const date = new Date().toISOString().slice(0, 10);
     await upsert({ path: `${name}/${date}-untitled.md`, title: "Untitled", content: "# Untitled\n\n", agent: "vlad", board: "marketing" });
     setNewFolderInput("");
-    setCurrentFolder(name);
+    navFolder(name);
   }
 
   async function createFile() {
@@ -132,8 +146,8 @@ function DocsPage() {
     const path = `${currentFolder}/${date}-${slug}.md`;
     const id = await upsert({ path, title, content: `# ${title}\n\n`, agent: "vlad", board: "marketing" });
     setNewFileInput("");
-    setOpenDoc({ _id: id as Id<"docs">, path, title, content: `# ${title}\n\n`, board: "marketing", updatedAt: Date.now() });
     setEditing(true);
+    router.push(`/docs?folder=${encodeURIComponent(currentFolder)}&doc=${id}`);
   }
 
   async function deleteFolder(folder: string) {
@@ -144,7 +158,7 @@ function DocsPage() {
   async function deleteDoc(doc: Doc) {
     if (!confirm(`Delete "${doc.title}"?`)) return;
     await remove({ id: doc._id });
-    if (openDoc?._id === doc._id) setOpenDoc(null);
+    if (openDocId === doc._id) navFolder(doc.path.split("/")[0]);
   }
 
   async function handleChange(content: string) {
@@ -161,7 +175,6 @@ function DocsPage() {
   async function handleTitleSave(title: string) {
     if (!openDoc || !title.trim()) return;
     await save({ id: openDoc._id, title });
-    setOpenDoc(d => d ? { ...d, title } : d);
   }
 
   async function handleTextSelection() {
@@ -203,13 +216,13 @@ function DocsPage() {
   // Breadcrumb
   const Breadcrumb = () => (
     <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", marginBottom: "28px" }}>
-      <span onClick={() => { setCurrentFolder(null); setOpenDoc(null); setEditing(false); }}
+      <span onClick={navRoot}
         style={{ cursor: "pointer", color: currentFolder || openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: currentFolder || openDoc ? 400 : 600 }}>
         All files
       </span>
       {currentFolder && <>
         <span style={{ color: "var(--text-muted)" }}>/</span>
-        <span onClick={() => { setOpenDoc(null); setEditing(false); }}
+        <span onClick={() => navFolder(currentFolder)}
           style={{ cursor: openDoc ? "pointer" : "default", color: openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: openDoc ? 400 : 600 }}>
           {folderLabel(currentFolder)}
         </span>
@@ -237,7 +250,7 @@ function DocsPage() {
         {search ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
             {visible.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
-              <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => { const f = doc.path?.split("/")[0]; setCurrentFolder(f ?? null); setOpenDoc(doc); }}>
+              <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
                 <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
                 <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
@@ -248,7 +261,7 @@ function DocsPage() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
             {folders.map(folder => (
-              <div key={folder} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => setCurrentFolder(folder)}>
+              <div key={folder} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navFolder(folder)}>
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteFolder(folder); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
                 <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
                 <div title={folderLabel(folder)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
@@ -256,7 +269,7 @@ function DocsPage() {
               </div>
             ))}
             {rootFiles.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
-              <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => setOpenDoc(doc)}>
+              <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
                 <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
                 <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
@@ -282,7 +295,7 @@ function DocsPage() {
         <Breadcrumb />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
           {currentFiles.map(doc => (
-            <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => setOpenDoc(doc)}>
+            <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
               <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
               <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
               <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
