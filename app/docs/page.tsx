@@ -28,13 +28,16 @@ function formatDate(ts: number) {
 }
 
 const CARD_STYLE = {
-  padding: "20px 16px",
-  borderRadius: "10px",
+  padding: "12px 14px",
+  borderRadius: "8px",
   background: "var(--bg-card)",
   border: "1px solid var(--border-subtle)",
   cursor: "pointer",
   transition: "border-color 0.15s",
   position: "relative" as const,
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
 };
 
 const MD = `
@@ -294,32 +297,38 @@ function DocsPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
         <Breadcrumb />
         {search ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
             {visible.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
               <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
-                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
-                <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{doc.path}</div>
+                <span style={{ fontSize: "16px", flexShrink: 0 }}>📄</span>
+                <div style={{ minWidth: 0 }}>
+                  <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.path}</div>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
             {folders.map(folder => (
               <div key={folder} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navFolder(folder)}>
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteFolder(folder); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
-                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
-                <div title={folderLabel(folder)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{(folderMap[folder] ?? []).length} files</div>
+                <span style={{ fontSize: "16px", flexShrink: 0 }}>📁</span>
+                <div style={{ minWidth: 0 }}>
+                  <div title={folderLabel(folder)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{(folderMap[folder] ?? []).length} files</div>
+                </div>
               </div>
             ))}
             {rootFiles.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
               <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
-                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
-                <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
+                <span style={{ fontSize: "16px", flexShrink: 0 }}>📄</span>
+                <div style={{ minWidth: 0 }}>
+                  <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -341,15 +350,17 @@ function DocsPage() {
       </>} />
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
         <Breadcrumb />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
           {/* Subfolders first */}
           {currentView.folders.map(sub => {
             const fullPath = `${currentFolder}/${sub}`;
             return (
               <div key={sub} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navFolder(fullPath)}>
-                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
-                <div title={folderLabel(sub)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(sub)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{currentView.countForFolder(sub)} files</div>
+                <span style={{ fontSize: "16px", flexShrink: 0 }}>📁</span>
+                <div style={{ minWidth: 0 }}>
+                  <div title={folderLabel(sub)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(sub)}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{currentView.countForFolder(sub)} files</div>
+                </div>
               </div>
             );
           })}
@@ -357,9 +368,11 @@ function DocsPage() {
           {currentFiles.map(doc => (
             <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
               <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
-              <div style={{ fontSize: "28px", marginBottom: "10px" }}>📄</div>
-              <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
+              <span style={{ fontSize: "16px", flexShrink: 0 }}>📄</span>
+              <div style={{ minWidth: 0 }}>
+                <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{formatDate(doc.updatedAt)}</div>
+              </div>
             </div>
           ))}
         </div>
