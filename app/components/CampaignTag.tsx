@@ -1,13 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useCampaign, Campaign } from "./CampaignContext";
-import { useCampaignTags } from "./useCampaignTags";
+import { useCampaign } from "./CampaignContext";
 
-// Small inline badge showing campaign tags on an item
-// Click to open dropdown to add/remove campaigns
 export function CampaignTag({ itemId }: { itemId: string }) {
-  const { campaigns } = useCampaign();
-  const { getItemCampaigns, toggleTag } = useCampaignTags();
+  const { campaigns, getItemCampaigns, toggleTag } = useCampaign();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -17,20 +13,19 @@ export function CampaignTag({ itemId }: { itemId: string }) {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const itemCampaigns = getItemCampaigns(itemId);
-  const activeCampaigns = campaigns.filter(c => !c.archived && itemCampaigns.includes(c.id));
+  const itemCampaignIds = getItemCampaigns(itemId);
+  const activeCampaigns = campaigns.filter(c => !c.archived && itemCampaignIds.includes(c._id));
   const visibleCampaigns = campaigns.filter(c => !c.archived);
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      {/* Badges */}
       <div
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         style={{ display: "flex", gap: 3, alignItems: "center", cursor: "pointer" }}
       >
         {activeCampaigns.length > 0 ? (
           activeCampaigns.map(c => (
-            <span key={c.id} style={{
+            <span key={c._id} style={{
               fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
               background: `${c.color}20`, color: c.color, whiteSpace: "nowrap",
             }}>{c.name}</span>
@@ -44,7 +39,6 @@ export function CampaignTag({ itemId }: { itemId: string }) {
         )}
       </div>
 
-      {/* Dropdown */}
       {open && visibleCampaigns.length > 0 && (
         <div
           onClick={e => e.stopPropagation()}
@@ -56,9 +50,9 @@ export function CampaignTag({ itemId }: { itemId: string }) {
           }}
         >
           {visibleCampaigns.map(c => {
-            const isTagged = itemCampaigns.includes(c.id);
+            const isTagged = itemCampaignIds.includes(c._id);
             return (
-              <button key={c.id} onClick={() => toggleTag(itemId, c.id)} style={{
+              <button key={c._id} onClick={() => toggleTag(itemId, c._id)} style={{
                 display: "flex", alignItems: "center", gap: 8, width: "100%",
                 padding: "6px 12px", background: isTagged ? `${c.color}10` : "transparent",
                 border: "none", cursor: "pointer", fontSize: 11,

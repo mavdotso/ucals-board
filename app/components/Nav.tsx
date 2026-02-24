@@ -50,10 +50,10 @@ function CampaignSelector() {
 
   const visibleCampaigns = campaigns.filter(c => !c.archived);
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!newName.trim()) return;
-    const c = addCampaign(newName);
-    setActiveCampaignId(c.id);
+    const id = await addCampaign(newName);
+    setActiveCampaignId(id);
     setNewName("");
     setAdding(false);
     setOpen(false);
@@ -101,16 +101,16 @@ function CampaignSelector() {
 
           {/* Campaign list */}
           {visibleCampaigns.map(c => (
-            <button key={c.id} onClick={() => { setActiveCampaignId(c.id); setOpen(false); }} style={{
+            <button key={c._id} onClick={() => { setActiveCampaignId(c._id); setOpen(false); }} style={{
               display: "flex", alignItems: "center", gap: 8, width: "100%",
-              padding: "8px 14px", background: activeCampaignId === c.id ? "var(--bg-card-elevated)" : "transparent",
+              padding: "8px 14px", background: activeCampaignId === c._id ? "var(--bg-card-elevated)" : "transparent",
               border: "none", cursor: "pointer", fontSize: 12,
               color: "var(--text-primary)", textAlign: "left",
-              fontWeight: activeCampaignId === c.id ? 600 : 400,
+              fontWeight: activeCampaignId === c._id ? 600 : 400,
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
               {c.name}
-              {activeCampaignId === c.id && <span style={{ marginLeft: "auto", fontSize: 11 }}>✓</span>}
+              {activeCampaignId === c._id && <span style={{ marginLeft: "auto", fontSize: 11 }}>✓</span>}
             </button>
           ))}
 

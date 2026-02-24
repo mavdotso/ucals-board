@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Nav } from "@/app/components/Nav";
 import { useCampaign } from "@/app/components/CampaignContext";
-import { useCampaignTags } from "@/app/components/useCampaignTags";
+
 import { CampaignTag } from "@/app/components/CampaignTag";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -159,8 +159,8 @@ export default function PipelinePage() {
   useEffect(() => { setCards(loadCards()); }, []);
   useEffect(() => { if (cards.length || localStorage.getItem(STORAGE_KEY)) saveCards(cards); }, [cards]);
 
-  const { activeCampaignId } = useCampaign();
-  const { itemMatchesCampaign } = useCampaignTags();
+  const { activeCampaignId, itemMatchesCampaign } = useCampaign();
+  
 
   const pipeline = PIPELINES.find(p => p.id === activePipeline)!;
   const pipelineCards = cards

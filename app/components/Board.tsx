@@ -9,8 +9,6 @@ import { DocIntakeModal } from "./DocIntakeModal";
 import { GlobalSearch } from "./GlobalSearch";
 import { Nav } from "@/app/components/Nav";
 import { useCampaign } from "./CampaignContext";
-import { useCampaignTags } from "./useCampaignTags";
-
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type BoardType = "marketing";
 
@@ -35,8 +33,8 @@ export function Board() {
   const moveCard = useMutation(api.cards.moveCard);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  const { activeCampaignId } = useCampaign();
-  const { itemMatchesCampaign } = useCampaignTags();
+  const { activeCampaignId, itemMatchesCampaign } = useCampaign();
+  
 
   const cards = useQuery(api.cards.listAll, { board: activeBoard }) ?? [];
 

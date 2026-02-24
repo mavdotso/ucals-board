@@ -6,8 +6,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { PostModal } from "../components/PostModal";
 import { Nav } from "@/app/components/Nav";
 import { useCampaign } from "@/app/components/CampaignContext";
-import { useCampaignTags } from "@/app/components/useCampaignTags";
-
 type ViewMode = "month" | "week" | "3day";
 type Platform = "x" | "linkedin";
 type PostStatus = "idea" | "draft" | "ready" | "scheduled" | "published";
@@ -132,8 +130,8 @@ export default function CalendarPage() {
     }
   }, [viewMode, currentDate]);
 
-  const { activeCampaignId } = useCampaign();
-  const { itemMatchesCampaign } = useCampaignTags();
+  const { activeCampaignId, itemMatchesCampaign } = useCampaign();
+  
 
   const postsRaw = useQuery(api.posts.list, {
     board: activeBoard,

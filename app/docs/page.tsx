@@ -7,7 +7,7 @@ import { RichEditor } from "@/app/components/editor/RichEditor";
 import { Id } from "@/convex/_generated/dataModel";
 import { Nav } from "@/app/components/Nav";
 import { useCampaign } from "@/app/components/CampaignContext";
-import { useCampaignTags } from "@/app/components/useCampaignTags";
+
 import { CampaignTag } from "@/app/components/CampaignTag";
 import { marked } from "marked";
 
@@ -101,8 +101,8 @@ function DocsPage() {
   const [showToast, setShowToast] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const { activeCampaignId } = useCampaign();
-  const { itemMatchesCampaign } = useCampaignTags();
+  const { activeCampaignId, itemMatchesCampaign } = useCampaign();
+  
 
   const allDocsRaw = (useQuery(api.docs.listAll) ?? []) as Doc[];
   const allDocs = allDocsRaw.filter(d => itemMatchesCampaign(d._id, activeCampaignId));

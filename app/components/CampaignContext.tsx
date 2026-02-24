@@ -1,28 +1,42 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 
 export interface Campaign {
-  id: string;
+  _id: Id<"campaigns">;
   name: string;
   color: string;
-  archived?: boolean;
+  archived: boolean;
   createdAt: number;
+}
+
+interface CampaignTag {
+  _id: Id<"campaignTags">;
+  itemId: string;
+  campaignId: Id<"campaigns">;
 }
 
 interface CampaignContextType {
   campaigns: Campaign[];
-  activeCampaignId: string | null;
+  activeCampaignId: Id<"campaigns"> | null;
   activeCampaign: Campaign | null;
-  setActiveCampaignId: (id: string | null) => void;
-  addCampaign: (name: string) => Campaign;
-  updateCampaign: (id: string, updates: Partial<Campaign>) => void;
-  archiveCampaign: (id: string) => void;
-  deleteCampaign: (id: string) => void;
+  setActiveCampaignId: (id: Id<"campaigns"> | null) => void;
+  addCampaign: (name: string) => Promise<Id<"campaigns">>;
+  updateCampaign: (id: Id<"campaigns">, updates: { name?: string; color?: string; archived?: boolean }) => void;
+  deleteCampaign: (id: Id<"campaigns">) => void;
+  // Tags
+  tags: CampaignTag[];
+  getItemCampaigns: (itemId: string) => Id<"campaigns">[];
+  tagItem: (itemId: string, campaignId: Id<"campaigns">) => void;
+  untagItem: (itemId: string, campaignId: Id<"campaigns">) => void;
+  toggleTag: (itemId: string, campaignId: Id<"campaigns">) => void;
+  itemMatchesCampaign: (itemId: string, campaignId: Id<"campaigns"> | null) => boolean;
 }
 
 const CampaignContext = createContext<CampaignContextType | null>(null);
 
-const STORAGE_CAMPAIGNS = "ucals-campaigns";
 const STORAGE_ACTIVE = "ucals-active-campaign";
 
 const COLORS = [
@@ -30,78 +44,80 @@ const COLORS = [
   "#EC4899", "#06B6D4", "#F97316", "#6366F1", "#14B8A6",
 ];
 
-const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+export function CampaignProvider({ children }: { children: ReactNode }) {
+  const campaignsData = useQuery(api.campaigns.list) ?? [];
+  const tagsData = useQuery(api.campaigns.listTags) ?? [];
 
-function loadCampaigns(): Campaign[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_CAMPAIGNS) || "[]"); } catch { return []; }
-}
+  const createCampaign = useMutation(api.campaigns.create);
+  const updateCampaignMut = useMutation(api.campaigns.update);
+  const removeCampaign = useMutation(api.campaigns.remove);
+  const tagItemMut = useMutation(api.campaigns.tagItem);
+  const untagItemMut = useMutation(api.campaigns.untagItem);
 
-function saveCampaigns(c: Campaign[]) {
-  try { localStorage.setItem(STORAGE_CAMPAIGNS, JSON.stringify(c)); } catch {}
-}
+  const [activeCampaignId, _setActive] = useState<Id<"campaigns"> | null>(null);
 
-function loadActive(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(STORAGE_ACTIVE) || null;
-}
+  // Load active from localStorage (just the filter state, not the data)
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_ACTIVE);
+    if (saved) _setActive(saved as Id<"campaigns">);
+  }, []);
 
-function saveActive(id: string | null) {
-  try {
+  const setActiveCampaignId = useCallback((id: Id<"campaigns"> | null) => {
+    _setActive(id);
     if (id) localStorage.setItem(STORAGE_ACTIVE, id);
     else localStorage.removeItem(STORAGE_ACTIVE);
-  } catch {}
-}
-
-export function CampaignProvider({ children }: { children: ReactNode }) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [activeCampaignId, _setActive] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCampaigns(loadCampaigns());
-    _setActive(loadActive());
   }, []);
 
-  useEffect(() => { if (campaigns.length || localStorage.getItem(STORAGE_CAMPAIGNS)) saveCampaigns(campaigns); }, [campaigns]);
+  const campaigns = campaignsData as Campaign[];
+  const tags = tagsData as CampaignTag[];
 
-  const setActiveCampaignId = useCallback((id: string | null) => {
-    _setActive(id);
-    saveActive(id);
-  }, []);
+  const addCampaign = useCallback(async (name: string) => {
+    const color = COLORS[campaigns.length % COLORS.length];
+    return await createCampaign({ name: name.trim(), color });
+  }, [campaigns.length, createCampaign]);
 
-  const addCampaign = useCallback((name: string): Campaign => {
-    const c: Campaign = {
-      id: uid(),
-      name: name.trim(),
-      color: COLORS[campaigns.length % COLORS.length],
-      createdAt: Date.now(),
-    };
-    setCampaigns(prev => [...prev, c]);
-    return c;
-  }, [campaigns.length]);
+  const updateCampaign = useCallback((id: Id<"campaigns">, updates: { name?: string; color?: string; archived?: boolean }) => {
+    updateCampaignMut({ id, ...updates });
+  }, [updateCampaignMut]);
 
-  const updateCampaign = useCallback((id: string, updates: Partial<Campaign>) => {
-    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  }, []);
+  const deleteCampaign = useCallback((id: Id<"campaigns">) => {
+    removeCampaign({ id });
+    if (activeCampaignId === id) {
+      _setActive(null);
+      localStorage.removeItem(STORAGE_ACTIVE);
+    }
+  }, [removeCampaign, activeCampaignId]);
 
-  const archiveCampaign = useCallback((id: string) => {
-    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, archived: true } : c));
-    _setActive(prev => prev === id ? null : prev);
-    if (activeCampaignId === id) saveActive(null);
-  }, [activeCampaignId]);
+  const getItemCampaigns = useCallback((itemId: string): Id<"campaigns">[] => {
+    return tags.filter(t => t.itemId === itemId).map(t => t.campaignId);
+  }, [tags]);
 
-  const deleteCampaign = useCallback((id: string) => {
-    setCampaigns(prev => prev.filter(c => c.id !== id));
-    _setActive(prev => prev === id ? null : prev);
-    if (activeCampaignId === id) saveActive(null);
-  }, [activeCampaignId]);
+  const tagItem = useCallback((itemId: string, campaignId: Id<"campaigns">) => {
+    tagItemMut({ itemId, campaignId });
+  }, [tagItemMut]);
 
-  const activeCampaign = activeCampaignId ? campaigns.find(c => c.id === activeCampaignId) || null : null;
+  const untagItem = useCallback((itemId: string, campaignId: Id<"campaigns">) => {
+    untagItemMut({ itemId, campaignId });
+  }, [untagItemMut]);
+
+  const toggleTag = useCallback((itemId: string, campaignId: Id<"campaigns">) => {
+    const existing = tags.find(t => t.itemId === itemId && t.campaignId === campaignId);
+    if (existing) untagItemMut({ itemId, campaignId });
+    else tagItemMut({ itemId, campaignId });
+  }, [tags, tagItemMut, untagItemMut]);
+
+  const itemMatchesCampaign = useCallback((itemId: string, campaignId: Id<"campaigns"> | null): boolean => {
+    if (!campaignId) return true;
+    return tags.some(t => t.itemId === itemId && t.campaignId === campaignId);
+  }, [tags]);
+
+  const activeCampaign = activeCampaignId ? campaigns.find(c => c._id === activeCampaignId) || null : null;
 
   return (
     <CampaignContext.Provider value={{
       campaigns, activeCampaignId, activeCampaign,
-      setActiveCampaignId, addCampaign, updateCampaign, archiveCampaign, deleteCampaign,
+      setActiveCampaignId, addCampaign, updateCampaign, deleteCampaign,
+      tags, getItemCampaigns, tagItem, untagItem, toggleTag, itemMatchesCampaign,
     }}>
       {children}
     </CampaignContext.Provider>

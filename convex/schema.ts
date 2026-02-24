@@ -136,6 +136,21 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_createdAt", ["createdAt"]),
 
+  campaigns: defineTable({
+    name: v.string(),
+    color: v.string(),
+    archived: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_createdAt", ["createdAt"]),
+
+  campaignTags: defineTable({
+    itemId: v.string(),
+    campaignId: v.id("campaigns"),
+    createdAt: v.number(),
+  })
+    .index("by_item", ["itemId"])
+    .index("by_campaign", ["campaignId"]),
+
   boardNodes: defineTable({
     type: v.literal("note"),
     x: v.number(),
