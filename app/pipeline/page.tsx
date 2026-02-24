@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Nav } from "@/app/components/Nav";
+import { useCampaign } from "@/app/components/CampaignContext";
+import { useCampaignTags } from "@/app/components/useCampaignTags";
+import { CampaignTag } from "@/app/components/CampaignTag";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,8 +159,13 @@ export default function PipelinePage() {
   useEffect(() => { setCards(loadCards()); }, []);
   useEffect(() => { if (cards.length || localStorage.getItem(STORAGE_KEY)) saveCards(cards); }, [cards]);
 
+  const { activeCampaignId } = useCampaign();
+  const { itemMatchesCampaign } = useCampaignTags();
+
   const pipeline = PIPELINES.find(p => p.id === activePipeline)!;
-  const pipelineCards = cards.filter(c => c.pipelineId === activePipeline);
+  const pipelineCards = cards
+    .filter(c => c.pipelineId === activePipeline)
+    .filter(c => itemMatchesCampaign(c.id, activeCampaignId));
 
   function addCard(column: string) {
     if (!newTitle.trim()) return;
@@ -311,8 +319,9 @@ export default function PipelinePage() {
                       cursor: "grab", transition: "border-color 0.15s",
                       opacity: dragCard === card.id ? 0.4 : 1,
                     }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>{card.title}</div>
-                    {/* Show first 2 non-empty fields as tags */}
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 3 }}>{card.title}</div>
+                    <div style={{ marginBottom: 4 }}><CampaignTag itemId={card.id} /></div>
+                    {/* Show first non-empty fields as tags */}
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {pipeline.cardFields.slice(0, 3).map(f => {
                         const val = card.fields[f.key];

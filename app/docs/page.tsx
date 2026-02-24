@@ -6,6 +6,9 @@ import { api } from "@/convex/_generated/api";
 import { RichEditor } from "@/app/components/editor/RichEditor";
 import { Id } from "@/convex/_generated/dataModel";
 import { Nav } from "@/app/components/Nav";
+import { useCampaign } from "@/app/components/CampaignContext";
+import { useCampaignTags } from "@/app/components/useCampaignTags";
+import { CampaignTag } from "@/app/components/CampaignTag";
 import { marked } from "marked";
 
 type BoardFilter = "all" | "marketing";
@@ -98,7 +101,11 @@ function DocsPage() {
   const [showToast, setShowToast] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const allDocs = (useQuery(api.docs.listAll) ?? []) as Doc[];
+  const { activeCampaignId } = useCampaign();
+  const { itemMatchesCampaign } = useCampaignTags();
+
+  const allDocsRaw = (useQuery(api.docs.listAll) ?? []) as Doc[];
+  const allDocs = allDocsRaw.filter(d => itemMatchesCampaign(d._id, activeCampaignId));
   const upsert = useMutation(api.docs.upsert);
   const save = useMutation(api.docs.save);
   const remove = useMutation(api.docs.remove);
@@ -305,6 +312,7 @@ function DocsPage() {
                 <div style={{ minWidth: 0 }}>
                   <div title={doc.title} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.path}</div>
+                  <div style={{ marginTop: 3 }}><CampaignTag itemId={doc._id} /></div>
                 </div>
               </div>
             ))}

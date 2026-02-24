@@ -8,6 +8,8 @@ import { CardModal } from "./CardModal";
 import { DocIntakeModal } from "./DocIntakeModal";
 import { GlobalSearch } from "./GlobalSearch";
 import { Nav } from "@/app/components/Nav";
+import { useCampaign } from "./CampaignContext";
+import { useCampaignTags } from "./useCampaignTags";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type BoardType = "marketing";
@@ -33,11 +35,14 @@ export function Board() {
   const moveCard = useMutation(api.cards.moveCard);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
+  const { activeCampaignId } = useCampaign();
+  const { itemMatchesCampaign } = useCampaignTags();
+
   const cards = useQuery(api.cards.listAll, { board: activeBoard }) ?? [];
 
-  const filteredCards = activeAgent
-    ? cards.filter((c) => c.assignee === activeAgent)
-    : cards;
+  const filteredCards = cards
+    .filter((c) => !activeAgent || c.assignee === activeAgent)
+    .filter((c) => itemMatchesCampaign(c._id, activeCampaignId));
 
   const cardsByColumn = COLUMNS.reduce((acc, col) => {
     acc[col] = filteredCards.filter((c) => c.column === col).sort((a, b) => a.order - b.order);

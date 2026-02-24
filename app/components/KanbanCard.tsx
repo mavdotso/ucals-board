@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { CardModal } from "./CardModal";
 import { DocPreview } from "./DocPreview";
+import { CampaignTag } from "./CampaignTag";
 import { Id } from "@/convex/_generated/dataModel";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
@@ -99,8 +100,11 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
             {/* Priority bar */}
             <div style={{ height: "2px", borderRadius: "2px", background: PRIORITY_COLORS[card.priority], marginBottom: "9px", opacity: 0.8 }} />
 
-            <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "8px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "4px" }}>
               {card.title}
+            </div>
+            <div style={{ marginBottom: "6px" }}>
+              <CampaignTag itemId={card._id} />
             </div>
 
             {card.description && (

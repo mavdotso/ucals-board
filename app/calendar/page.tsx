@@ -5,6 +5,8 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PostModal } from "../components/PostModal";
 import { Nav } from "@/app/components/Nav";
+import { useCampaign } from "@/app/components/CampaignContext";
+import { useCampaignTags } from "@/app/components/useCampaignTags";
 
 type ViewMode = "month" | "week" | "3day";
 type Platform = "x" | "linkedin";
@@ -130,13 +132,18 @@ export default function CalendarPage() {
     }
   }, [viewMode, currentDate]);
 
-  const posts = useQuery(api.posts.list, {
+  const { activeCampaignId } = useCampaign();
+  const { itemMatchesCampaign } = useCampaignTags();
+
+  const postsRaw = useQuery(api.posts.list, {
     board: activeBoard,
     startTime: visibleRange.start,
     endTime: visibleRange.end,
   }) ?? [];
+  const posts = postsRaw.filter(p => itemMatchesCampaign(p._id, activeCampaignId));
 
-  const backlogPosts = useQuery(api.posts.listBacklog, { board: activeBoard }) ?? [];
+  const backlogPostsRaw = useQuery(api.posts.listBacklog, { board: activeBoard }) ?? [];
+  const backlogPosts = backlogPostsRaw.filter(p => itemMatchesCampaign(p._id, activeCampaignId));
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
