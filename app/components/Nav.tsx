@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const PAGES = [
   { href: "/", label: "ucals", bold: true },
   { href: "/docs", label: "docs" },
-  { href: "/stack", label: "stack" },
+  { href: "/accounts", label: "accounts" },
   { href: "/calendar", label: "calendar" },
   { href: "/pipeline", label: "pipeline" },
   { href: "/board", label: "board" },
