@@ -8,7 +8,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Nav } from "@/app/components/Nav";
 import { marked } from "marked";
 
-type BoardFilter = "all" | "marketing" | "product";
+type BoardFilter = "all" | "marketing";
 type Doc = {
   _id: Id<"docs">;
   path: string;
@@ -287,7 +287,7 @@ function DocsPage() {
   if (!currentFolder && !openDoc) return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       <Nav active="/docs" right={<>
-        {(["all", "marketing", "product"] as BoardFilter[]).map(b => (
+        {(["all", "marketing"] as BoardFilter[]).map(b => (
           <button key={b} onClick={() => setBoardFilter(b)} style={{ background: boardFilter === b ? "var(--bg-card-elevated)" : "none", border: boardFilter === b ? "1px solid var(--border-default)" : "1px solid transparent", borderRadius: "6px", padding: "3px 10px", color: boardFilter === b ? "var(--text-primary)" : "var(--text-muted)", fontSize: "12px", fontWeight: boardFilter === b ? 600 : 400, cursor: "pointer" }}>{b}</button>
         ))}
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "130px" }} />

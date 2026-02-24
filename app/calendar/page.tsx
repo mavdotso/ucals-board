@@ -9,7 +9,7 @@ import { Nav } from "@/app/components/Nav";
 type ViewMode = "month" | "week" | "3day";
 type Platform = "x" | "linkedin";
 type PostStatus = "idea" | "draft" | "ready" | "scheduled" | "published";
-type Board = "marketing" | "product";
+type Board = "marketing";
 
 interface Post {
   _id: Id<"posts">;
@@ -201,15 +201,7 @@ export default function CalendarPage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {/* Header */}
       <Nav active="/calendar" right={<>
-          {(["marketing", "product"] as Board[]).map((b) => (
-            <button key={b} onClick={() => setActiveBoard(b)} style={{
-              background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
-              border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
-              borderRadius: "6px", padding: "4px 12px",
-              color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
-              fontSize: "12px", fontWeight: activeBoard === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
-            }}>{b}</button>
-          ))}
+          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", padding: "4px 12px" }}>Marketing</span>
           <span style={{ color: "var(--border-default)" }}>|</span>
           <button onClick={() => navigate(-1)} style={navBtnStyle}>‹</button>
           <button onClick={goToday} style={{ ...navBtnStyle, fontSize: "12px", padding: "4px 10px" }}>Today</button>

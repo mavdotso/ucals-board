@@ -10,7 +10,7 @@ import { GlobalSearch } from "./GlobalSearch";
 import { Nav } from "@/app/components/Nav";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
-type BoardType = "marketing" | "product";
+type BoardType = "marketing";
 
 const COLUMNS: Column[] = ["inbox", "in-progress", "review", "done", "blocked", "junk"];
 
@@ -97,15 +97,7 @@ export function Board() {
       {/* Header */}
       <Nav active="/" right={<>
         {/* Board tabs */}
-        {(["marketing", "product"] as BoardType[]).map((b) => (
-          <button key={b} onClick={() => setActiveBoard(b)} style={{
-            background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
-            border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
-            borderRadius: "6px", padding: "4px 12px",
-            color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
-            fontSize: "12px", fontWeight: activeBoard === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
-          }}>{b}</button>
-        ))}
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", padding: "4px 12px" }}>Marketing</span>
         <span style={{ color: "var(--border-default)" }}>|</span>
         {/* Agents */}
         {AGENTS.map((a) => {

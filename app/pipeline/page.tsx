@@ -1,257 +1,451 @@
 "use client";
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { useState, useEffect, useRef } from "react";
 import { Nav } from "@/app/components/Nav";
 
-type StageStatus = "idle" | "running" | "complete" | "failed";
-type PipelineStatus = "running" | "complete" | "failed";
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-type Stage = {
-  stage: number;
+interface PipelineConfig {
+  id: string;
   name: string;
-  agent: string;
-  status: StageStatus;
-  docPath?: string;
-  startedAt?: number;
-  completedAt?: number;
-};
+  icon: string;
+  columns: string[];
+  cardFields: FieldDef[];
+}
 
-type Pipeline = {
-  _id: Id<"pipelines">;
-  name: string;
-  status: PipelineStatus;
-  inputUrl: string;
-  competitorName?: string;
-  stages: Stage[];
+interface FieldDef {
+  key: string;
+  label: string;
+  type: "text" | "select" | "date" | "url";
+  options?: string[];
+}
+
+interface PipelineCard {
+  id: string;
+  pipelineId: string;
+  column: string;
+  title: string;
+  fields: Record<string, string>;
   createdAt: number;
   updatedAt: number;
-};
+}
 
-const STAGE_META = [
-  { emoji: "🔍", label: "Competitor Research", agent: "Rex Ads", desc: "Analyze Meta Ads Library for competitor creatives and messaging" },
-  { emoji: "🧠", label: "Campaign Strategy", agent: "Aria", desc: "Build campaign brief, targeting, positioning from research" },
-  { emoji: "✍️", label: "Creative Production", agent: "Maya + Nova", desc: "Write copy and generate ad creative assets" },
-  { emoji: "🚀", label: "Meta Publishing", agent: "Leo Meta", desc: "Push campaign to Meta Ads Manager as draft" },
+// ─── Pipeline Presets ────────────────────────────────────────────────────────
+
+const PIPELINES: PipelineConfig[] = [
+  {
+    id: "content",
+    name: "Content",
+    icon: "📝",
+    columns: ["Brief", "Drafting", "Review", "Dev", "Live"],
+    cardFields: [
+      { key: "keyword", label: "Target Keyword", type: "text" },
+      { key: "agent", label: "Agent", type: "select", options: ["sage", "maya", "aria", "leo", "rex"] },
+      { key: "url", label: "Target URL", type: "text" },
+      { key: "wordCount", label: "Word Count", type: "text" },
+      { key: "notes", label: "Notes", type: "text" },
+    ],
+  },
+  {
+    id: "social",
+    name: "Social",
+    icon: "📱",
+    columns: ["Idea", "Draft", "Scheduled", "Posted", "Performing"],
+    cardFields: [
+      { key: "platform", label: "Platform", type: "select", options: ["x", "linkedin", "reddit", "hn", "ih"] },
+      { key: "postType", label: "Type", type: "select", options: ["thread", "standalone", "article", "comment"] },
+      { key: "hook", label: "Hook", type: "text" },
+      { key: "scheduledDate", label: "Scheduled Date", type: "date" },
+      { key: "sourceDoc", label: "Source Doc", type: "text" },
+      { key: "liveLink", label: "Live Link", type: "url" },
+    ],
+  },
+  {
+    id: "email",
+    name: "Email",
+    icon: "✉️",
+    columns: ["Draft", "Review", "Built", "Testing", "Live"],
+    cardFields: [
+      { key: "sequence", label: "Sequence Name", type: "text" },
+      { key: "emailNum", label: "Email # (e.g. 3 of 5)", type: "text" },
+      { key: "trigger", label: "Trigger", type: "select", options: ["signup", "day-3", "day-7", "churn", "manual"] },
+      { key: "subject", label: "Subject Line", type: "text" },
+      { key: "loopsStatus", label: "Loops.so Status", type: "select", options: ["not-started", "template-ready", "active", "paused"] },
+    ],
+  },
+  {
+    id: "outreach",
+    name: "Outreach",
+    icon: "🤝",
+    columns: ["Research", "Draft", "Sent", "Replied", "Converted"],
+    cardFields: [
+      { key: "contact", label: "Contact Name", type: "text" },
+      { key: "channel", label: "Channel", type: "select", options: ["email", "dm", "linkedin", "twitter"] },
+      { key: "type", label: "Type", type: "select", options: ["youtuber", "blogger", "coach", "partner", "journalist"] },
+      { key: "angle", label: "Personalization Angle", type: "text" },
+      { key: "followUp", label: "Follow-up Date", type: "date" },
+      { key: "outcome", label: "Outcome", type: "text" },
+    ],
+  },
+  {
+    id: "ads",
+    name: "Ads",
+    icon: "📣",
+    columns: ["Research", "Brief", "Copy", "Creative", "Review", "Live", "Optimizing"],
+    cardFields: [
+      { key: "platform", label: "Platform", type: "select", options: ["meta", "google", "linkedin"] },
+      { key: "audience", label: "Audience", type: "select", options: ["cold", "retargeting", "lookalike"] },
+      { key: "budget", label: "Budget", type: "text" },
+      { key: "format", label: "Format", type: "select", options: ["image", "video", "carousel"] },
+      { key: "creativeLink", label: "Creative Link", type: "url" },
+      { key: "performance", label: "Performance Notes", type: "text" },
+    ],
+  },
+  {
+    id: "launch",
+    name: "Launch",
+    icon: "🚀",
+    columns: ["Prep", "Ready", "Submitted", "Live", "Follow-up"],
+    cardFields: [
+      { key: "channel", label: "Channel", type: "select", options: ["product-hunt", "app-store", "hn", "reddit", "press"] },
+      { key: "assetType", label: "Asset Type", type: "select", options: ["listing", "post", "press-release", "media-kit"] },
+      { key: "targetDate", label: "Target Date", type: "date" },
+      { key: "owner", label: "Owner", type: "select", options: ["vlad", "todd"] },
+      { key: "docLink", label: "Doc Link", type: "url" },
+      { key: "results", label: "Results", type: "text" },
+    ],
+  },
 ];
 
-const STATUS_COLOR: Record<StageStatus | PipelineStatus, string> = {
-  idle: "var(--text-muted)",
-  running: "#D8973C",
-  complete: "#5C8A6C",
-  failed: "#A4243B",
-};
+// ─── Persistence ─────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<StageStatus, string> = {
-  idle: "Waiting",
-  running: "Running",
-  complete: "Done",
-  failed: "Failed",
-};
+const STORAGE_KEY = "ucals-pipeline-cards";
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-function StatusDot({ status }: { status: StageStatus }) {
-  return (
-    <span style={{
-      display: "inline-block",
-      width: 8, height: 8,
-      borderRadius: "50%",
-      background: STATUS_COLOR[status],
-      boxShadow: status === "running" ? `0 0 0 3px ${STATUS_COLOR.running}33` : "none",
-      animation: status === "running" ? "pulse 1.5s ease-in-out infinite" : "none",
-    }} />
-  );
+function loadCards(): PipelineCard[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+}
+function saveCards(cards: PipelineCard[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); } catch {}
 }
 
-function formatDuration(start?: number, end?: number) {
-  if (!start) return "";
-  const ms = (end ?? Date.now()) - start;
-  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-  return `${Math.round(ms / 60000)}m`;
-}
+// ─── Column colors ───────────────────────────────────────────────────────────
+
+const COL_COLORS = [
+  "var(--text-muted)", // first col
+  "var(--amber)",
+  "#3B82F6",
+  "var(--forest)",
+  "var(--cranberry)",
+  "#A855F7",
+  "#EC4899",
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function PipelinePage() {
-  const pipelines = (useQuery(api.pipelines.list) ?? []) as Pipeline[];
-  const createPipeline = useMutation(api.pipelines.create);
-  const updateStage = useMutation(api.pipelines.updateStage);
-  const removePipeline = useMutation(api.pipelines.remove);
+  const [cards, setCards] = useState<PipelineCard[]>([]);
+  const [activePipeline, setActivePipeline] = useState(PIPELINES[0].id);
+  const [editingCard, setEditingCard] = useState<PipelineCard | null>(null);
+  const [addingCol, setAddingCol] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [dragCard, setDragCard] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
 
-  const [newName, setNewName] = useState("");
-  const [newUrl, setNewUrl] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [confirmPublish, setConfirmPublish] = useState<Id<"pipelines"> | null>(null);
-  const [activeId, setActiveId] = useState<Id<"pipelines"> | null>(null);
+  useEffect(() => { setCards(loadCards()); }, []);
+  useEffect(() => { if (cards.length || localStorage.getItem(STORAGE_KEY)) saveCards(cards); }, [cards]);
 
-  const activePipeline = activeId ? pipelines.find(p => p._id === activeId) : pipelines[0] ?? null;
+  const pipeline = PIPELINES.find(p => p.id === activePipeline)!;
+  const pipelineCards = cards.filter(c => c.pipelineId === activePipeline);
 
-  async function handleCreate() {
-    if (!newName.trim() || !newUrl.trim()) return;
-    setCreating(true);
-    const id = await createPipeline({ name: newName.trim(), inputUrl: newUrl.trim() });
-    setNewName(""); setNewUrl("");
-    setActiveId(id as Id<"pipelines">);
-    setCreating(false);
+  function addCard(column: string) {
+    if (!newTitle.trim()) return;
+    const card: PipelineCard = {
+      id: uid(), pipelineId: activePipeline, column,
+      title: newTitle.trim(), fields: {},
+      createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    setCards(prev => [...prev, card]);
+    setNewTitle("");
+    setAddingCol(null);
   }
 
-  async function runStage(pipeline: Pipeline, stageNum: number) {
-    if (stageNum === 4) { setConfirmPublish(pipeline._id); return; }
-    await updateStage({ id: pipeline._id, stage: stageNum, status: "running" });
-    // Simulate completion after 2s (in real use, agents update this)
-    setTimeout(async () => {
-      await updateStage({ id: pipeline._id, stage: stageNum, status: "complete", docPath: `${["research", "campaign", "copy", "ads"][stageNum - 1]}/${new Date().toISOString().slice(0, 10)}-${pipeline.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-stage${stageNum}.md` });
-    }, 2000);
+  function updateCard(id: string, updates: Partial<PipelineCard>) {
+    setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c));
   }
 
-  async function confirmPublishStage(pipeline: Pipeline) {
-    setConfirmPublish(null);
-    await updateStage({ id: pipeline._id, stage: 4, status: "running" });
-    setTimeout(async () => {
-      await updateStage({ id: pipeline._id, stage: 4, status: "complete" });
-    }, 2000);
+  function deleteCard(id: string) {
+    setCards(prev => prev.filter(c => c.id !== id));
+    setEditingCard(null);
   }
+
+  function moveCard(id: string, toCol: string) {
+    setCards(prev => prev.map(c => c.id === id ? { ...c, column: toCol, updatedAt: Date.now() } : c));
+  }
+
+  // Drag handlers
+  function onDragStart(cardId: string) { setDragCard(cardId); }
+  function onDragOver(e: React.DragEvent, col: string) { e.preventDefault(); setDragOverCol(col); }
+  function onDragLeave() { setDragOverCol(null); }
+  function onDrop(col: string) {
+    if (dragCard) moveCard(dragCard, col);
+    setDragCard(null);
+    setDragOverCol(null);
+  }
+
+  // Count per column
+  const colCounts = pipeline.columns.reduce((acc, col) => {
+    acc[col] = pipelineCards.filter(c => c.column === col).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
-      <Nav active="/pipeline" right={<>
-        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Pipeline name…"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "160px" }} />
-        <input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="Meta Ads Library URL…"
-          style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "200px" }} />
-        <button onClick={handleCreate} disabled={!newName.trim() || !newUrl.trim() || creating}
-          style={{ background: "var(--text-primary)", border: "none", borderRadius: "6px", padding: "5px 14px", color: "var(--bg-app)", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: newName.trim() && newUrl.trim() ? 1 : 0.4 }}>
-          + New Run
-        </button>
-      </>} />
+      <Nav active="/pipeline" right={
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {PIPELINES.map(p => (
+            <button key={p.id} onClick={() => setActivePipeline(p.id)} style={{
+              padding: "4px 10px", borderRadius: 6, fontSize: 12, cursor: "pointer",
+              background: activePipeline === p.id ? "var(--bg-card-elevated)" : "transparent",
+              border: activePipeline === p.id ? "1px solid var(--border-default)" : "1px solid transparent",
+              color: activePipeline === p.id ? "var(--text-primary)" : "var(--text-muted)",
+              fontWeight: activePipeline === p.id ? 600 : 400,
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              <span style={{ fontSize: 13 }}>{p.icon}</span>
+              {p.name}
+              {colCounts && pipelineCards.length > 0 && (
+                <span style={{ fontSize: 10, opacity: 0.6 }}>({pipelineCards.length})</span>
+              )}
+            </button>
+          ))}
+        </div>
+      } />
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
+      {/* Kanban columns */}
+      <div style={{
+        flex: 1, display: "flex", gap: 12, padding: "16px 20px",
+        overflowX: "auto", overflowY: "hidden",
+      }}>
+        {pipeline.columns.map((col, colIdx) => {
+          const colCards = pipelineCards.filter(c => c.column === col);
+          const colColor = COL_COLORS[colIdx % COL_COLORS.length];
+          const isDropTarget = dragOverCol === col;
 
-        {/* Active pipeline */}
-        {activePipeline ? (
-          <div style={{ marginBottom: "48px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "28px" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>{activePipeline.name}</h2>
-              <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "4px", background: `${STATUS_COLOR[activePipeline.status]}18`, color: STATUS_COLOR[activePipeline.status], fontWeight: 600, textTransform: "capitalize" }}>{activePipeline.status}</span>
-              <a href={activePipeline.inputUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>View source ↗</a>
-            </div>
+          return (
+            <div key={col}
+              onDragOver={(e) => onDragOver(e, col)}
+              onDragLeave={onDragLeave}
+              onDrop={() => onDrop(col)}
+              style={{
+                flex: `0 0 ${Math.max(220, 100 / pipeline.columns.length)}px`,
+                minWidth: 220, maxWidth: 300,
+                display: "flex", flexDirection: "column",
+                background: isDropTarget ? "rgba(59,130,246,0.04)" : "transparent",
+                borderRadius: 10, transition: "background 0.15s",
+              }}>
+              {/* Column header */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 10px", marginBottom: 8,
+              }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: colColor, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{col}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{colCards.length}</span>
+                <button
+                  onClick={() => { setAddingCol(col); setNewTitle(""); setTimeout(() => addInputRef.current?.focus(), 50); }}
+                  style={{
+                    marginLeft: "auto", background: "none", border: "none",
+                    color: "var(--text-muted)", cursor: "pointer", fontSize: 16, lineHeight: 1,
+                    padding: "0 2px",
+                  }}
+                >+</button>
+              </div>
 
-            {/* Stage cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0" }}>
-              {STAGE_META.map((meta, i) => {
-                const stageNum = i + 1;
-                const stage = activePipeline.stages.find(s => s.stage === stageNum);
-                const status = stage?.status ?? "idle";
-                const prevComplete = stageNum === 1 || activePipeline.stages.find(s => s.stage === stageNum - 1)?.status === "complete";
-                const canRun = prevComplete && status === "idle";
-                const isBlocked = !prevComplete && status === "idle";
-
-                return (
-                  <div key={stageNum} style={{ display: "flex", alignItems: "stretch" }}>
-                    <div style={{
-                      flex: 1,
-                      padding: "24px 20px",
-                      background: isBlocked ? "var(--bg-card)" : "var(--bg-card)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRight: stageNum < 4 ? "none" : "1px solid var(--border-subtle)",
-                      borderRadius: stageNum === 1 ? "10px 0 0 10px" : stageNum === 4 ? "0 10px 10px 0" : "0",
-                      opacity: isBlocked ? 0.5 : 1,
-                      transition: "opacity 0.2s",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                        <span style={{ fontSize: "20px" }}>{meta.emoji}</span>
-                        <StatusDot status={status} />
-                        <span style={{ fontSize: "10px", color: STATUS_COLOR[status], fontWeight: 600, textTransform: "uppercase" }}>{STATUS_LABEL[status]}</span>
-                        {(stage?.startedAt) && <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>{formatDuration(stage.startedAt, stage.completedAt)}</span>}
-                      </div>
-
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>Stage {stageNum}</div>
-                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}>{meta.label}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px", lineHeight: 1.5 }}>{meta.desc}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px" }}>Agent: <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{meta.agent}</span></div>
-
-                      {stage?.docPath && (
-                        <div style={{ fontSize: "11px", color: "#5C8A6C", marginBottom: "12px", wordBreak: "break-all" }}>
-                          📄 {stage.docPath}
-                        </div>
-                      )}
-
-                      {canRun && (
-                        <button onClick={() => runStage(activePipeline, stageNum)} style={{ width: "100%", background: "var(--text-primary)", border: "none", borderRadius: "7px", padding: "8px 12px", color: "var(--bg-app)", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                          {stageNum === 4 ? "Publish to Meta →" : "Run →"}
-                        </button>
-                      )}
-                      {status === "running" && (
-                        <div style={{ fontSize: "11px", color: STATUS_COLOR.running, textAlign: "center", marginTop: "4px" }}>Agent working…</div>
-                      )}
-                    </div>
-
-                    {/* Arrow connector */}
-                    {stageNum < 4 && (
-                      <div style={{ display: "flex", alignItems: "center", padding: "0 2px", background: "var(--bg-app)", zIndex: 1 }}>
-                        <span style={{ fontSize: "16px", color: status === "complete" ? STATUS_COLOR.complete : "var(--border-default)" }}>→</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-muted)" }}>
-            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⚡</div>
-            <div style={{ fontSize: "14px", marginBottom: "8px" }}>No pipelines yet</div>
-            <div style={{ fontSize: "12px" }}>Create a new run using the form above</div>
-          </div>
-        )}
-
-        {/* Run history */}
-        {pipelines.length > 0 && (
-          <div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "16px" }}>Run history</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              {pipelines.map(p => {
-                const docsProduced = p.stages.filter(s => s.docPath).length;
-                const isActive = p._id === (activePipeline?._id);
-                return (
-                  <div key={p._id} onClick={() => setActiveId(p._id)} style={{
-                    display: "flex", alignItems: "center", gap: "16px",
-                    padding: "12px 16px", borderRadius: "8px",
-                    background: isActive ? "var(--bg-card-elevated)" : "var(--bg-card)",
-                    border: `1px solid ${isActive ? "var(--border-default)" : "var(--border-subtle)"}`,
-                    cursor: "pointer",
+              {/* Cards */}
+              <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingBottom: 60 }}>
+                {/* Add card form */}
+                {addingCol === col && (
+                  <div style={{
+                    padding: "10px", borderRadius: 8,
+                    background: "var(--bg-card)", border: "1px solid var(--border-default)",
                   }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: STATUS_COLOR[p.status], flexShrink: 0 }} />
-                    <div style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>{p.name}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{docsProduced} doc{docsProduced !== 1 ? "s" : ""}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{new Date(p.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
-                    <button onClick={e => { e.stopPropagation(); if (confirm("Delete this pipeline run?")) removePipeline({ id: p._id }); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "13px", padding: "0 4px", opacity: 0.5 }}>✕</button>
+                    <input
+                      ref={addInputRef}
+                      value={newTitle}
+                      onChange={e => setNewTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") addCard(col); if (e.key === "Escape") setAddingCol(null); }}
+                      placeholder="Card title…"
+                      style={{
+                        width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                        borderRadius: 5, padding: "6px 8px", color: "var(--text-primary)",
+                        fontSize: 12, outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                      <button onClick={() => addCard(col)} disabled={!newTitle.trim()} style={{
+                        flex: 1, background: "var(--text-primary)", border: "none", borderRadius: 5,
+                        padding: "5px", color: "var(--bg-app)", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                        opacity: newTitle.trim() ? 1 : 0.4,
+                      }}>Add</button>
+                      <button onClick={() => setAddingCol(null)} style={{
+                        background: "none", border: "1px solid var(--border-subtle)", borderRadius: 5,
+                        padding: "5px 10px", color: "var(--text-muted)", fontSize: 11, cursor: "pointer",
+                      }}>Cancel</button>
+                    </div>
                   </div>
-                );
-              })}
+                )}
+
+                {colCards.sort((a, b) => b.updatedAt - a.updatedAt).map(card => (
+                  <div
+                    key={card.id}
+                    draggable
+                    onDragStart={() => onDragStart(card.id)}
+                    onClick={() => setEditingCard(card)}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
+                    style={{
+                      padding: "10px 12px", borderRadius: 8,
+                      background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
+                      cursor: "grab", transition: "border-color 0.15s",
+                      opacity: dragCard === card.id ? 0.4 : 1,
+                    }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>{card.title}</div>
+                    {/* Show first 2 non-empty fields as tags */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {pipeline.cardFields.slice(0, 3).map(f => {
+                        const val = card.fields[f.key];
+                        if (!val) return null;
+                        return (
+                          <span key={f.key} style={{
+                            fontSize: 10, color: "var(--text-muted)",
+                            background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                            borderRadius: 4, padding: "1px 6px",
+                          }}>{val}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })}
       </div>
 
-      {/* Confirm publish dialog */}
-      {confirmPublish && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "12px", padding: "28px", maxWidth: "400px", width: "90%" }}>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "10px" }}>Publish to Meta?</div>
-            <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "24px" }}>This will push all creative assets to Meta Ads Manager as a DRAFT campaign. You'll need to review and activate it manually in Meta.</div>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button onClick={() => setConfirmPublish(null)} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: "7px", padding: "8px 16px", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
-              <button onClick={() => { const p = pipelines.find(x => x._id === confirmPublish); if (p) confirmPublishStage(p); }} style={{ background: "#A4243B", border: "none", borderRadius: "7px", padding: "8px 16px", color: "white", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Publish Draft</button>
+      {/* Edit card modal */}
+      {editingCard && (
+        <div
+          onClick={() => setEditingCard(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          }}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "var(--bg-card)", border: "1px solid var(--border-default)",
+              borderRadius: 12, padding: "24px", width: 420, maxHeight: "80vh", overflowY: "auto",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.3)",
+            }}>
+            {/* Title */}
+            <input
+              value={editingCard.title}
+              onChange={e => {
+                const updated = { ...editingCard, title: e.target.value };
+                setEditingCard(updated);
+                updateCard(updated.id, { title: e.target.value });
+              }}
+              style={{
+                width: "100%", fontSize: 16, fontWeight: 600, color: "var(--text-primary)",
+                background: "transparent", border: "none", outline: "none",
+                marginBottom: 16, boxSizing: "border-box",
+              }}
+            />
+
+            {/* Move to column */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Column</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {pipeline.columns.map((col, i) => (
+                  <button key={col} onClick={() => {
+                    moveCard(editingCard.id, col);
+                    setEditingCard({ ...editingCard, column: col });
+                  }} style={{
+                    padding: "4px 10px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                    background: editingCard.column === col ? COL_COLORS[i % COL_COLORS.length] : "var(--bg-secondary)",
+                    border: editingCard.column === col ? "none" : "1px solid var(--border-subtle)",
+                    color: editingCard.column === col ? "#fff" : "var(--text-muted)",
+                    fontWeight: editingCard.column === col ? 600 : 400,
+                  }}>{col}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fields */}
+            {pipeline.cardFields.map(f => (
+              <div key={f.key} style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4, display: "block", textTransform: "uppercase", letterSpacing: "0.05em" }}>{f.label}</label>
+                {f.type === "select" ? (
+                  <select
+                    value={editingCard.fields[f.key] || ""}
+                    onChange={e => {
+                      const fields = { ...editingCard.fields, [f.key]: e.target.value };
+                      setEditingCard({ ...editingCard, fields });
+                      updateCard(editingCard.id, { fields });
+                    }}
+                    style={{
+                      width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                      borderRadius: 6, padding: "7px 10px", color: "var(--text-primary)", fontSize: 13, outline: "none",
+                    }}>
+                    <option value="">—</option>
+                    {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type={f.type === "date" ? "date" : f.type === "url" ? "url" : "text"}
+                    value={editingCard.fields[f.key] || ""}
+                    onChange={e => {
+                      const fields = { ...editingCard.fields, [f.key]: e.target.value };
+                      setEditingCard({ ...editingCard, fields });
+                      updateCard(editingCard.id, { fields });
+                    }}
+                    placeholder={f.label}
+                    style={{
+                      width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                      borderRadius: 6, padding: "7px 10px", color: "var(--text-primary)", fontSize: 13, outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
+              <button onClick={() => deleteCard(editingCard.id)} style={{
+                background: "none", border: "none", color: "#EF4444", fontSize: 12, cursor: "pointer",
+              }}>Delete</button>
+              <button onClick={() => setEditingCard(null)} style={{
+                background: "var(--text-primary)", border: "none", borderRadius: 6,
+                padding: "6px 16px", color: "var(--bg-app)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}>Done</button>
             </div>
           </div>
         </div>
       )}
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
+      {/* Empty state */}
+      {pipelineCards.length === 0 && !addingCol && (
+        <div style={{
+          position: "absolute", bottom: 40, left: 0, right: 0,
+          textAlign: "center", color: "var(--text-muted)", fontSize: 13,
+          pointerEvents: "none",
+        }}>
+          No cards yet — click + on any column to get started
+        </div>
+      )}
     </div>
   );
 }
