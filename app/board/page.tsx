@@ -90,7 +90,9 @@ const DOT_GRID_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 export default function BoardPage() {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [tool, setTool] = useState<Tool>("select");
+  const [tool, setToolState] = useState<Tool>("select");
+  const toolRef = useRef<Tool>("select");
+  const setTool = useCallback((t: Tool) => { toolRef.current = t; setToolState(t); }, []);
   const [selectedIds, setSelectedIds] = useState<Set<Id<"boardNodes">>>(new Set());
   const [editingId, setEditingId] = useState<Id<"boardNodes"> | null>(null);
 
@@ -116,6 +118,7 @@ export default function BoardPage() {
   // Drawing new shape
   const [drawing, setDrawing] = useState(false);
   const drawStart = useRef({ x: 0, y: 0 });
+  const drawingToolRef = useRef<Tool>("note");
   const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   // Undo/Redo
@@ -302,8 +305,10 @@ export default function BoardPage() {
     }
 
     // Drawing tools
-    if (["note", "text", "rect", "ellipse", "arrow"].includes(tool)) {
+    const currentTool = toolRef.current;
+    if (["note", "text", "rect", "ellipse", "arrow"].includes(currentTool)) {
       setDrawing(true);
+      drawingToolRef.current = currentTool;
       drawStart.current = { x: cp.x, y: cp.y };
       setDrawRect({ x: cp.x, y: cp.y, w: 0, h: 0 });
     }
@@ -359,7 +364,7 @@ export default function BoardPage() {
       const cp = screenToCanvas(e.clientX, e.clientY);
       const sx = drawStart.current.x;
       const sy = drawStart.current.y;
-      if (tool === "arrow") {
+      if (drawingToolRef.current === "arrow") {
         setDrawRect({ x: sx, y: sy, w: cp.x - sx, h: cp.y - sy });
       } else {
         setDrawRect({
@@ -418,11 +423,11 @@ export default function BoardPage() {
       setDrawRect(null);
       if (!rect) return;
 
+      const drawTool = drawingToolRef.current;
       const minSize = 10;
       let { x, y, w, h } = rect;
 
-      if (tool === "arrow") {
-        // Arrow: drawRect.w/h are deltas
+      if (drawTool === "arrow") {
         const id = await createNode({
           type: "arrow",
           x, y, width: 0, height: 0,
@@ -436,31 +441,29 @@ export default function BoardPage() {
       }
 
       // For small clicks (no drag), use default size
-      if (w < minSize) w = tool === "note" ? 200 : tool === "text" ? 200 : 160;
-      if (h < minSize) h = tool === "note" ? 150 : tool === "text" ? 50 : 100;
+      if (w < minSize) w = drawTool === "note" ? 200 : drawTool === "text" ? 200 : 160;
+      if (h < minSize) h = drawTool === "note" ? 150 : drawTool === "text" ? 50 : 100;
 
-      const colorMap: Record<Tool, NoteColor | undefined> = {
+      const colorMap: Record<string, NoteColor | undefined> = {
         note: "yellow",
         text: undefined,
         rect: undefined,
         ellipse: undefined,
         arrow: undefined,
-        select: undefined,
-        hand: undefined,
       };
 
       const id = await createNode({
-        type: tool as NodeType,
+        type: drawTool as NodeType,
         x, y, width: w, height: h,
-        color: colorMap[tool],
+        color: colorMap[drawTool],
         content: "",
-        strokeColor: tool === "rect" || tool === "ellipse" ? "#6B6A68" : undefined,
-        fillColor: tool === "rect" || tool === "ellipse" ? "transparent" : undefined,
-        strokeWidth: tool === "rect" || tool === "ellipse" ? 2 : undefined,
+        strokeColor: drawTool === "rect" || drawTool === "ellipse" ? "#6B6A68" : undefined,
+        fillColor: drawTool === "rect" || drawTool === "ellipse" ? "transparent" : undefined,
+        strokeWidth: drawTool === "rect" || drawTool === "ellipse" ? 2 : undefined,
       });
 
       setSelectedIds(new Set([id]));
-      if (tool === "note" || tool === "text") {
+      if (drawTool === "note" || drawTool === "text") {
         setEditingId(id);
       }
       setTool("select");
@@ -1013,7 +1016,7 @@ export default function BoardPage() {
           )}
 
           {/* Draw preview (screen space) */}
-          {drawing && drawRect && tool !== "arrow" && (drawRect.w > 2 || drawRect.h > 2) && (
+          {drawing && drawRect && drawingToolRef.current !== "arrow" && (drawRect.w > 2 || drawRect.h > 2) && (
             <div style={{
               position: "absolute",
               left: drawRect.x * scale + offset.x,
@@ -1021,14 +1024,14 @@ export default function BoardPage() {
               width: drawRect.w * scale,
               height: drawRect.h * scale,
               border: "1.5px dashed #3B82F6",
-              background: "rgba(59,130,246,0.04)",
-              borderRadius: tool === "note" ? 6 : tool === "ellipse" ? "50%" : 2,
+              background: drawingToolRef.current === "note" ? "rgba(254,243,199,0.3)" : "rgba(59,130,246,0.04)",
+              borderRadius: drawingToolRef.current === "note" ? 6 : drawingToolRef.current === "ellipse" ? "50%" : 2,
               pointerEvents: "none",
             }} />
           )}
 
           {/* Arrow draw preview */}
-          {drawing && drawRect && tool === "arrow" && (
+          {drawing && drawRect && drawingToolRef.current === "arrow" && (
             <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}>
               <line
                 x1={drawRect.x * scale + offset.x}
