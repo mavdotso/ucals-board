@@ -239,7 +239,7 @@ export default function CalendarPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Day headers */}
           {viewMode === "month" && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border-subtle)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", borderBottom: "1px solid var(--border-subtle)" }}>
               {DAY_LABELS.map((label) => (
                 <div
                   key={label}
@@ -450,7 +450,7 @@ function MonthGrid({
           key={ri}
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
+            gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
             flex: 1,
             minHeight: "100px",
           }}
@@ -635,6 +635,8 @@ function DayCell({
         minHeight: "80px",
         cursor: "pointer",
         opacity: isCurrentMonth ? 1 : 0.35,
+        overflow: "hidden",
+        minWidth: 0,
         background: dragOver
           ? "rgba(29,161,242,0.08)"
           : isToday
