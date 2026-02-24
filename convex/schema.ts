@@ -70,9 +70,9 @@ export default defineSchema({
       v.literal("cancelled")
     ),
     url: v.optional(v.string()),
-    cost: v.optional(v.string()),
+    cost: v.optional(v.string()),         // e.g. "$29/mo" or "free"
     billingCycle: v.optional(v.union(v.literal("monthly"), v.literal("annual"), v.literal("free"), v.literal("one-time"))),
-    accessNotes: v.optional(v.string()),
+    accessNotes: v.optional(v.string()),  // who has access, credentials location
     notes: v.optional(v.string()),
     addedAt: v.number(),
     updatedAt: v.number(),
@@ -81,9 +81,9 @@ export default defineSchema({
     .index("by_category", ["category"]),
 
   docs: defineTable({
-    path: v.string(),
+    path: v.string(),       // e.g. "maya/landing-page-copy.md"
     title: v.string(),
-    content: v.string(),
+    content: v.string(),    // markdown content
     agent: v.optional(v.string()),
     board: v.union(v.literal("marketing"), v.literal("product")),
     cardId: v.optional(v.id("cards")),
@@ -137,32 +137,13 @@ export default defineSchema({
     .index("by_createdAt", ["createdAt"]),
 
   boardNodes: defineTable({
-    type: v.union(
-      v.literal("note"),
-      v.literal("text"),
-      v.literal("rect"),
-      v.literal("ellipse"),
-      v.literal("arrow")
-    ),
+    type: v.literal("note"),
     x: v.number(),
     y: v.number(),
     width: v.number(),
     height: v.number(),
-    content: v.optional(v.string()),
-    color: v.optional(v.union(
-      v.literal("yellow"),
-      v.literal("blue"),
-      v.literal("green"),
-      v.literal("pink"),
-      v.literal("white"),
-      v.literal("gray")
-    )),
-    strokeColor: v.optional(v.string()),
-    fillColor: v.optional(v.string()),
-    strokeWidth: v.optional(v.number()),
-    x2: v.optional(v.number()),
-    y2: v.optional(v.number()),
-    fontSize: v.optional(v.number()),
+    content: v.string(),
+    color: v.union(v.literal("yellow"), v.literal("blue"), v.literal("green"), v.literal("pink")),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_createdAt", ["createdAt"]),
