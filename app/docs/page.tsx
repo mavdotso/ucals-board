@@ -114,6 +114,42 @@ function DocsPage() {
     ? filtered.filter(d => d.title.toLowerCase().includes(search.toLowerCase()) || d.path.toLowerCase().includes(search.toLowerCase()))
     : filtered;
 
+  // Build nested folder tree from paths
+  // currentFolder can be "aria" or "aria/seo" or "aria/seo/deep" etc.
+  function getItemsAtPath(prefix: string) {
+    const subfolders = new Set<string>();
+    const files: Doc[] = [];
+    for (const doc of visible) {
+      const docPath = doc.path ?? "";
+      if (prefix) {
+        if (!docPath.startsWith(prefix + "/")) continue;
+        const rest = docPath.slice(prefix.length + 1);
+        const parts = rest.split("/");
+        if (parts.length === 1) {
+          files.push(doc);
+        } else {
+          subfolders.add(parts[0]);
+        }
+      } else {
+        const parts = docPath.split("/");
+        if (parts.length === 1) {
+          files.push(doc);
+        } else {
+          subfolders.add(parts[0]);
+        }
+      }
+    }
+    return {
+      folders: [...subfolders].sort(),
+      files: files.sort((a, b) => b.updatedAt - a.updatedAt),
+      countForFolder: (sub: string) => {
+        const full = prefix ? `${prefix}/${sub}` : sub;
+        return visible.filter(d => (d.path ?? "").startsWith(full + "/") || (d.path ?? "") === full).length;
+      }
+    };
+  }
+
+  // Legacy compat
   const folderMap: Record<string, Doc[]> = {};
   const rootFiles: Doc[] = [];
   for (const doc of visible) {
@@ -126,16 +162,19 @@ function DocsPage() {
       rootFiles.push(doc);
     }
   }
-  const folders = Object.keys(folderMap).sort();
-  const currentFiles = currentFolder ? (folderMap[currentFolder] ?? []).sort((a, b) => b.updatedAt - a.updatedAt) : [];
+
+  const currentView = getItemsAtPath(currentFolder ?? "");
+  const folders = currentFolder ? currentView.folders : Object.keys(folderMap).sort();
+  const currentFiles = currentFolder ? currentView.files : [];
 
   async function createFolder() {
     const name = newFolderInput.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
     if (!name) return;
     const date = new Date().toISOString().slice(0, 10);
-    await upsert({ path: `${name}/${date}-untitled.md`, title: "Untitled", content: "# Untitled\n\n", agent: "vlad", board: "marketing" });
+    const prefix = currentFolder ? `${currentFolder}/${name}` : name;
+    await upsert({ path: `${prefix}/${date}-untitled.md`, title: "Untitled", content: "# Untitled\n\n", agent: "vlad", board: "marketing" });
     setNewFolderInput("");
-    navFolder(name);
+    navFolder(prefix);
   }
 
   async function createFile() {
@@ -213,26 +252,33 @@ function DocsPage() {
     };
   }
 
-  // Breadcrumb
-  const Breadcrumb = () => (
-    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", marginBottom: "28px" }}>
-      <span onClick={navRoot}
-        style={{ cursor: "pointer", color: currentFolder || openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: currentFolder || openDoc ? 400 : 600 }}>
-        All files
-      </span>
-      {currentFolder && <>
-        <span style={{ color: "var(--text-muted)" }}>/</span>
-        <span onClick={() => navFolder(currentFolder)}
-          style={{ cursor: openDoc ? "pointer" : "default", color: openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: openDoc ? 400 : 600 }}>
-          {folderLabel(currentFolder)}
+  // Breadcrumb — supports nested paths like "aria/seo/deep"
+  const Breadcrumb = () => {
+    const folderParts = currentFolder ? currentFolder.split("/") : [];
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", marginBottom: "28px", flexWrap: "wrap" }}>
+        <span onClick={navRoot}
+          style={{ cursor: "pointer", color: currentFolder || openDoc ? "var(--text-muted)" : "var(--text-primary)", fontWeight: currentFolder || openDoc ? 400 : 600 }}>
+          All files
         </span>
-      </>}
-      {openDoc && <>
-        <span style={{ color: "var(--text-muted)" }}>/</span>
-        <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{openDoc.title}</span>
-      </>}
-    </div>
-  );
+        {folderParts.map((part, i) => {
+          const path = folderParts.slice(0, i + 1).join("/");
+          const isLast = i === folderParts.length - 1 && !openDoc;
+          return <span key={path} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ color: "var(--text-muted)" }}>/</span>
+            <span onClick={() => !isLast && navFolder(path)}
+              style={{ cursor: isLast ? "default" : "pointer", color: isLast ? "var(--text-primary)" : "var(--text-muted)", fontWeight: isLast ? 600 : 400 }}>
+              {folderLabel(part)}
+            </span>
+          </span>;
+        })}
+        {openDoc && <>
+          <span style={{ color: "var(--text-muted)" }}>/</span>
+          <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{openDoc.title}</span>
+        </>}
+      </div>
+    );
+  };
 
   // ── ROOT VIEW ──────────────────────────────────────────────
   if (!currentFolder && !openDoc) return (
@@ -265,7 +311,7 @@ function DocsPage() {
                 <button className="del-x" onClick={e => { e.stopPropagation(); deleteFolder(folder); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
                 <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
                 <div title={folderLabel(folder)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(folder)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{folderMap[folder].length} files</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{(folderMap[folder] ?? []).length} files</div>
               </div>
             ))}
             {rootFiles.sort((a, b) => b.updatedAt - a.updatedAt).map(doc => (
@@ -287,13 +333,27 @@ function DocsPage() {
   if (currentFolder && !openDoc) return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       <Nav active="/docs" right={<>
-        <input value={newFileInput} onChange={e => setNewFileInput(e.target.value)} onKeyDown={e => e.key === "Enter" && createFile()} placeholder="New file…" style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "140px" }} />
+        <input value={newFolderInput} onChange={e => setNewFolderInput(e.target.value)} onKeyDown={e => e.key === "Enter" && createFolder()} placeholder="New subfolder…" style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "120px" }} />
+        <button onClick={createFolder} disabled={!newFolderInput.trim()} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 12px", color: "var(--text-primary)", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: newFolderInput.trim() ? 1 : 0.4 }}>+ Folder</button>
+        <input value={newFileInput} onChange={e => setNewFileInput(e.target.value)} onKeyDown={e => e.key === "Enter" && createFile()} placeholder="New file…" style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "120px" }} />
         <button onClick={createFile} disabled={!newFileInput.trim()} style={{ background: "var(--text-primary)", border: "none", borderRadius: "6px", padding: "5px 12px", color: "var(--bg-app)", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: newFileInput.trim() ? 1 : 0.4 }}>+ File</button>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…" style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "5px 10px", color: "var(--text-primary)", fontSize: "12px", outline: "none", width: "130px" }} />
       </>} />
       <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
         <Breadcrumb />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
+          {/* Subfolders first */}
+          {currentView.folders.map(sub => {
+            const fullPath = `${currentFolder}/${sub}`;
+            return (
+              <div key={sub} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navFolder(fullPath)}>
+                <div style={{ fontSize: "28px", marginBottom: "10px" }}>📁</div>
+                <div title={folderLabel(sub)} style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folderLabel(sub)}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{currentView.countForFolder(sub)} files</div>
+              </div>
+            );
+          })}
+          {/* Files */}
           {currentFiles.map(doc => (
             <div key={doc._id} style={CARD_STYLE} onMouseEnter={cardHover(true)} onMouseLeave={cardHover(false)} onClick={() => navDoc(doc)}>
               <button className="del-x" onClick={e => { e.stopPropagation(); deleteDoc(doc); }} style={{ position: "absolute", top: 8, right: 8, opacity: 0, background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--text-muted)", transition: "opacity 0.15s" }}>✕</button>
@@ -303,7 +363,7 @@ function DocsPage() {
             </div>
           ))}
         </div>
-        {currentFiles.length === 0 && <div style={{ color: "var(--text-muted)", fontSize: "13px", textAlign: "center", paddingTop: "60px" }}>No files yet — create one above</div>}
+        {currentView.folders.length === 0 && currentFiles.length === 0 && <div style={{ color: "var(--text-muted)", fontSize: "13px", textAlign: "center", paddingTop: "60px" }}>Empty — create a file or subfolder above</div>}
       </div>
       <style>{MD}</style>
     </div>
