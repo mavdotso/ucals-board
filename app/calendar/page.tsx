@@ -660,7 +660,7 @@ function DayCell({
       >
         {day.getDate()}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden", minWidth: 0 }}>
         {posts.slice(0, compact ? 3 : 10).map((post) => (
           <div
             key={post._id}
@@ -674,6 +674,7 @@ function DayCell({
               background: `${PLATFORM_COLORS[post.platform]}15`,
               cursor: "pointer",
               overflow: "hidden",
+              minWidth: 0,
             }}
           >
             <span style={{ fontSize: "10px", fontWeight: 700, color: PLATFORM_COLORS[post.platform], flexShrink: 0 }}>
@@ -686,6 +687,7 @@ function DayCell({
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                minWidth: 0,
               }}
             >
               {post.title}
