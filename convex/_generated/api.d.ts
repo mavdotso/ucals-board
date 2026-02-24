@@ -12,6 +12,7 @@ import type * as agentJobs from "../agentJobs.js";
 import type * as board from "../board.js";
 import type * as cards from "../cards.js";
 import type * as docs from "../docs.js";
+import type * as pipelines from "../pipelines.js";
 import type * as posts from "../posts.js";
 import type * as search from "../search.js";
 import type * as tools from "../tools.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   board: typeof board;
   cards: typeof cards;
   docs: typeof docs;
+  pipelines: typeof pipelines;
   posts: typeof posts;
   search: typeof search;
   tools: typeof tools;

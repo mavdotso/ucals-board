@@ -2,7 +2,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
-import Link from "next/link";
+import { Nav } from "@/app/components/Nav";
 import { Id } from "@/convex/_generated/dataModel";
 
 type Category = "analytics" | "marketing" | "seo" | "email" | "social" | "dev" | "design" | "ai" | "other";
@@ -198,25 +198,16 @@ export default function StackPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-app)", color: "var(--text-primary)" }}>
       {/* Header */}
-      <header style={{ borderBottom: "1px solid var(--border-subtle)", padding: "0 24px", height: "52px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-secondary)", gap: "16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>stack</span>
-        </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          {totalMonthlyCost > 0 && (
-            <span style={{ fontSize: "12px", color: "var(--text-muted)", padding: "4px 10px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px" }}>
-              ${totalMonthlyCost.toFixed(0)}/mo active
-            </span>
-          )}
-          <button onClick={() => setEditing("new")} style={{ background: "var(--text-primary)", border: "none", borderRadius: "7px", padding: "6px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
-            + Add tool
-          </button>
-        </div>
-      </header>
+      <Nav active="/stack" right={<>
+        {totalMonthlyCost > 0 && (
+          <span style={{ fontSize: "12px", color: "var(--text-muted)", padding: "4px 10px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "6px" }}>
+            ${totalMonthlyCost.toFixed(0)}/mo active
+          </span>
+        )}
+        <button onClick={() => setEditing("new")} style={{ background: "var(--text-primary)", border: "none", borderRadius: "7px", padding: "6px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+          + Add tool
+        </button>
+      </>} />
 
       <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
         {/* Filters */}

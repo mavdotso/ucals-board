@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { PostModal } from "../components/PostModal";
-import Link from "next/link";
+import { Nav } from "@/app/components/Nav";
 
 type ViewMode = "month" | "week" | "3day";
 type Platform = "x" | "linkedin";
@@ -200,117 +200,38 @@ export default function CalendarPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {/* Header */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          padding: "0 24px",
-          height: "52px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "var(--bg-secondary)",
-          flexShrink: 0,
-          gap: "16px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link href="/" style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>ucals</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/docs" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>docs</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/stack" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>stack</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>calendar</span>
-          <span style={{ color: "var(--border-default)", fontSize: "16px" }}>/</span>
-          <Link href="/calendar/posts" style={{ fontSize: "13px", color: "var(--text-muted)", textDecoration: "none" }}>posts</Link>
-          <span style={{ color: "var(--border-default)", fontSize: "12px", margin: "0 4px" }}>|</span>
-          <div style={{ display: "flex", gap: "4px" }}>
-            {(["marketing", "product"] as Board[]).map((b) => (
-              <button
-                key={b}
-                onClick={() => setActiveBoard(b)}
-                style={{
-                  background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
-                  border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
-                  borderRadius: "6px",
-                  padding: "4px 12px",
-                  color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
-                  fontSize: "13px",
-                  fontWeight: activeBoard === b ? 600 : 400,
-                  cursor: "pointer",
-                  textTransform: "capitalize",
-                }}
-              >
-                {b}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {/* Nav arrows */}
+      <Nav active="/calendar" right={<>
+          {(["marketing", "product"] as Board[]).map((b) => (
+            <button key={b} onClick={() => setActiveBoard(b)} style={{
+              background: activeBoard === b ? "var(--bg-card-elevated)" : "none",
+              border: activeBoard === b ? "1px solid var(--border-default)" : "1px solid transparent",
+              borderRadius: "6px", padding: "4px 12px",
+              color: activeBoard === b ? "var(--text-primary)" : "var(--text-muted)",
+              fontSize: "12px", fontWeight: activeBoard === b ? 600 : 400, cursor: "pointer", textTransform: "capitalize",
+            }}>{b}</button>
+          ))}
+          <span style={{ color: "var(--border-default)" }}>|</span>
           <button onClick={() => navigate(-1)} style={navBtnStyle}>‹</button>
           <button onClick={goToday} style={{ ...navBtnStyle, fontSize: "12px", padding: "4px 10px" }}>Today</button>
           <button onClick={() => navigate(1)} style={navBtnStyle}>›</button>
-
-          <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", minWidth: "180px", textAlign: "center" }}>
-            {headerLabel}
-          </span>
-
-          {/* View toggle */}
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", minWidth: "160px", textAlign: "center" }}>{headerLabel}</span>
           <div style={{ display: "flex", gap: "2px", background: "var(--bg-card)", borderRadius: "7px", border: "1px solid var(--border-subtle)", padding: "2px" }}>
             {(["month", "week", "3day"] as ViewMode[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setViewMode(v)}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "5px",
-                  fontSize: "12px",
-                  fontWeight: viewMode === v ? 600 : 400,
-                  cursor: "pointer",
-                  border: "none",
-                  background: viewMode === v ? "var(--bg-card-elevated)" : "transparent",
-                  color: viewMode === v ? "var(--text-primary)" : "var(--text-muted)",
-                }}
-              >
-                {v === "3day" ? "3 days" : v.charAt(0).toUpperCase() + v.slice(1)}
-              </button>
+              <button key={v} onClick={() => setViewMode(v)} style={{
+                padding: "4px 10px", borderRadius: "5px", fontSize: "12px",
+                fontWeight: viewMode === v ? 600 : 400, cursor: "pointer", border: "none",
+                background: viewMode === v ? "var(--bg-card-elevated)" : "transparent",
+                color: viewMode === v ? "var(--text-primary)" : "var(--text-muted)",
+              }}>{v === "3day" ? "3 days" : v.charAt(0).toUpperCase() + v.slice(1)}</button>
             ))}
           </div>
-
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: "none",
-              border: "1px solid var(--border-default)",
-              borderRadius: "7px",
-              padding: "4px 10px",
-              color: "var(--text-secondary)",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: "7px", padding: "4px 10px", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer" }}>
             {sidebarOpen ? "Hide backlog" : "Backlog"}
           </button>
-
-          <button
-            onClick={() => setCreating(true)}
-            style={{
-              background: "var(--text-primary)",
-              border: "none",
-              borderRadius: "7px",
-              padding: "6px 14px",
-              color: "var(--bg-app)",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={() => setCreating(true)} style={{ background: "var(--text-primary)", border: "none", borderRadius: "7px", padding: "6px 14px", color: "var(--bg-app)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
             + New post
           </button>
-        </div>
-      </header>
+      </>} />
 
       {/* Body */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -318,7 +239,7 @@ export default function CalendarPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Day headers */}
           {viewMode === "month" && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border-subtle)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", borderBottom: "1px solid var(--border-subtle)" }}>
               {DAY_LABELS.map((label) => (
                 <div
                   key={label}
@@ -529,7 +450,7 @@ function MonthGrid({
           key={ri}
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
+            gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
             flex: 1,
             minHeight: "100px",
           }}
@@ -714,6 +635,8 @@ function DayCell({
         minHeight: "80px",
         cursor: "pointer",
         opacity: isCurrentMonth ? 1 : 0.35,
+        overflow: "hidden",
+        minWidth: 0,
         background: dragOver
           ? "rgba(29,161,242,0.08)"
           : isToday
@@ -739,7 +662,7 @@ function DayCell({
       >
         {day.getDate()}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden", minWidth: 0 }}>
         {posts.slice(0, compact ? 3 : 10).map((post) => (
           <div
             key={post._id}
@@ -753,6 +676,7 @@ function DayCell({
               background: `${PLATFORM_COLORS[post.platform]}15`,
               cursor: "pointer",
               overflow: "hidden",
+              minWidth: 0,
             }}
           >
             <span style={{ fontSize: "10px", fontWeight: 700, color: PLATFORM_COLORS[post.platform], flexShrink: 0 }}>
@@ -765,6 +689,7 @@ function DayCell({
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                minWidth: 0,
               }}
             >
               {post.title}
