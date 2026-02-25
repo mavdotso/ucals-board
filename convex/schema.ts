@@ -151,6 +151,15 @@ export default defineSchema({
     .index("by_item", ["itemId"])
     .index("by_campaign", ["campaignId"]),
 
+  comments: defineTable({
+    cardId: v.id("cards"),
+    author: v.string(),           // "vlad" | "anya" | "maya" | etc
+    role: v.union(v.literal("human"), v.literal("agent")),
+    content: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_card", ["cardId", "createdAt"]),
+
   boardNodes: defineTable({
     type: v.literal("note"),
     x: v.number(),

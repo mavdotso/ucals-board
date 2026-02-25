@@ -27,6 +27,24 @@ export const getByPath = query({
   },
 });
 
+export const byPaths = query({
+  args: { paths: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const results: { path: string; _id: string; title: string; folder: string }[] = [];
+    for (const p of args.paths) {
+      const doc = await ctx.db
+        .query("docs")
+        .withIndex("by_path", (q) => q.eq("path", p))
+        .first();
+      if (doc) {
+        const parts = doc.path.split("/");
+        results.push({ path: doc.path, _id: doc._id, title: doc.title, folder: parts.length >= 2 ? parts.slice(0, -1).join("/") : "" });
+      }
+    }
+    return results;
+  },
+});
+
 export const byCard = query({
   args: { cardId: v.id("cards") },
   handler: async (ctx, args) => {

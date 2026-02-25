@@ -49,6 +49,7 @@ export const update = mutation({
     column: v.optional(v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk")),),
     assignee: v.optional(v.union(v.literal("vlad"), v.literal("aria"), v.literal("maya"), v.literal("leo"), v.literal("sage"), v.literal("rex"))),
     order: v.optional(v.number()),
+    docPaths: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;

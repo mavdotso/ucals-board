@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Draggable } from "@hello-pangea/dnd";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -39,6 +40,7 @@ const ASSIGNEE_COLORS: Record<Assignee, string> = {
 };
 
 export function KanbanCard({ card, index }: { card: Card; index: number }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [running, setRunning] = useState(false);
   const [previewDocId, setPreviewDocId] = useState<Id<"docs"> | null>(null);
@@ -46,6 +48,8 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
   const attachDoc = useMutation(api.cards.attachDoc);
 
   const cardDocs = useQuery(api.docs.byCard, { cardId: card._id }) ?? [];
+  const linkedDocs = useQuery(api.docs.byPaths, { paths: card.docPaths ?? [] }) ?? [];
+  const commentCount = useQuery(api.comments.count, { cardId: card._id }) ?? 0;
 
   async function handleRun(e: React.MouseEvent) {
     e.stopPropagation();
@@ -116,13 +120,43 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
               </div>
             )}
 
-            {/* Docs attached */}
+            {/* Docs attached (by cardId) */}
             {cardDocs.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "8px" }}>
                 {cardDocs.map((doc) => (
                   <div
                     key={doc._id}
                     onClick={(e) => { e.stopPropagation(); setPreviewDocId(doc._id); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      padding: "4px 8px", borderRadius: "5px",
+                      background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ fontSize: "11px" }}>📄</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {doc.title}
+                    </span>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>↗</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Linked docs (by docPaths) */}
+            {linkedDocs.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "8px" }}>
+                {linkedDocs.map((doc) => (
+                  <div
+                    key={doc._id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const params = new URLSearchParams();
+                      if (doc.folder) params.set("folder", doc.folder);
+                      params.set("doc", doc._id);
+                      router.push(`/docs?${params.toString()}`);
+                    }}
                     style={{
                       display: "flex", alignItems: "center", gap: "6px",
                       padding: "4px 8px", borderRadius: "5px",
@@ -159,6 +193,11 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
                 {(card.agentNotes?.length ?? 0) > 0 && (
                   <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
                     {card.agentNotes!.length} note{card.agentNotes!.length > 1 ? "s" : ""}
+                  </span>
+                )}
+                {commentCount > 0 && (
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "3px" }}>
+                    💬 {commentCount}
                   </span>
                 )}
               </div>

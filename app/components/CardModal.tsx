@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -21,6 +22,7 @@ interface Card {
   board: Board;
   assignee?: Assignee;
   agentNotes?: { agent: string; content: string; createdAt: number }[];
+  docPaths?: string[];
   order: number;
 }
 
@@ -53,9 +55,28 @@ const CATEGORY_COLORS: Record<Category, string> = {
 };
 
 export function CardModal({ card, defaultColumn = "inbox", board, onClose }: CardModalProps) {
+  const router = useRouter();
   const create = useMutation(api.cards.create);
   const update = useMutation(api.cards.update);
   const remove = useMutation(api.cards.remove);
+  const linkedDocs = useQuery(api.docs.byPaths, { paths: card?.docPaths ?? [] }) ?? [];
+  const comments = useQuery(api.comments.list, card ? { cardId: card._id } : "skip") ?? [];
+  const addComment = useMutation(api.comments.add);
+  const [commentText, setCommentText] = useState("");
+  const [sendingComment, setSendingComment] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [comments.length]);
+
+  async function handleSendComment() {
+    if (!commentText.trim() || !card || sendingComment) return;
+    setSendingComment(true);
+    await addComment({ cardId: card._id, author: "vlad", role: "human", content: commentText.trim() });
+    setCommentText("");
+    setSendingComment(false);
+  }
 
   const [title, setTitle] = useState(card?.title ?? "");
   const [description, setDescription] = useState(card?.description ?? "");
@@ -271,6 +292,106 @@ export function CardModal({ card, defaultColumn = "inbox", board, onClose }: Car
                   <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{note.content}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Linked docs */}
+        {linkedDocs.length > 0 && (
+          <div>
+            <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Linked Docs</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {linkedDocs.map((doc) => (
+                <div
+                  key={doc._id}
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    if (doc.folder) params.set("folder", doc.folder);
+                    params.set("doc", doc._id);
+                    router.push(`/docs?${params.toString()}`);
+                    onClose();
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "8px",
+                    padding: "8px 10px", borderRadius: "7px",
+                    background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
+                    cursor: "pointer", transition: "border-color 0.15s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-default)")}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+                >
+                  <span style={{ fontSize: "13px", flexShrink: 0 }}>📄</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.path}</div>
+                  </div>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0 }}>↗</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Comments thread */}
+        {card && (
+          <div>
+            <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Thread {comments.length > 0 && `(${comments.length})`}
+            </label>
+            {comments.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "240px", overflowY: "auto", marginBottom: "8px", paddingRight: "4px" }}>
+                {comments.map((c) => {
+                  const isHuman = c.role === "human";
+                  const agentInfo = ASSIGNEES.find(a => a.id === c.author);
+                  const color = agentInfo?.color ?? "var(--text-muted)";
+                  return (
+                    <div key={c._id} style={{
+                      background: isHuman ? "var(--bg-card)" : `${color}0a`,
+                      border: `1px solid ${isHuman ? "var(--border-subtle)" : `${color}22`}`,
+                      borderRadius: "7px", padding: "8px 10px",
+                      marginLeft: isHuman ? "0" : "16px",
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: isHuman ? "var(--text-primary)" : color, textTransform: "capitalize" }}>
+                          {c.author}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                          {new Date(c.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{c.content}</div>
+                    </div>
+                  );
+                })}
+                <div ref={threadEndRef} />
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "6px" }}>
+              <input
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendComment(); } }}
+                placeholder="Add a comment…"
+                style={{
+                  flex: 1, background: "var(--bg-card)", border: "1px solid var(--border-default)",
+                  borderRadius: "6px", padding: "8px 10px", color: "var(--text-primary)",
+                  fontSize: "13px", outline: "none", fontFamily: "inherit",
+                }}
+              />
+              <button
+                onClick={handleSendComment}
+                disabled={!commentText.trim() || sendingComment}
+                style={{
+                  background: commentText.trim() ? "var(--text-primary)" : "var(--bg-card)",
+                  border: commentText.trim() ? "none" : "1px solid var(--border-default)",
+                  borderRadius: "6px", padding: "8px 14px",
+                  color: commentText.trim() ? "var(--bg-app)" : "var(--text-muted)",
+                  fontSize: "13px", fontWeight: 600, cursor: commentText.trim() ? "pointer" : "default",
+                  flexShrink: 0,
+                }}
+              >
+                {sendingComment ? "…" : "Send"}
+              </button>
             </div>
           </div>
         )}
