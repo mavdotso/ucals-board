@@ -5,8 +5,6 @@ import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 
-type Board = "marketing" | "product";
-
 const COLUMN_LABELS: Record<string, string> = {
   "inbox": "Inbox", "in-progress": "In Progress", "review": "Review", "done": "Done", "junk": "Junk",
 };
@@ -16,17 +14,16 @@ const ASSIGNEE_COLORS: Record<string, string> = {
 };
 
 interface GlobalSearchProps {
-  board: Board;
   onSelectCard: (id: Id<"cards">) => void;
 }
 
-export function GlobalSearch({ board, onSelectCard }: GlobalSearchProps) {
+export function GlobalSearch({ onSelectCard }: GlobalSearchProps) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const results = useQuery(api.search.global, q.length >= 2 ? { q, board } : "skip");
+  const results = useQuery(api.search.global, q.length >= 2 ? { q, board: "marketing" } : "skip");
 
   // Cmd+K to open
   useEffect(() => {

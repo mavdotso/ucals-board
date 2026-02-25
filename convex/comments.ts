@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 export const list = query({
   args: { cardId: v.id("cards") },
@@ -19,13 +20,20 @@ export const add = mutation({
     content: v.string(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("comments", {
+    const id = await ctx.db.insert("comments", {
       cardId: args.cardId,
       author: args.author,
       role: args.role,
       content: args.content,
       createdAt: Date.now(),
     });
+
+    // When Vlad comments, move card back to inbox
+    if (args.role === "human") {
+      await ctx.db.patch(args.cardId, { column: "inbox" });
+    }
+
+    return id;
   },
 });
 

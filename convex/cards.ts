@@ -1,16 +1,12 @@
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-type Board = "marketing" | "product";
-type Column = "inbox" | "in-progress" | "review" | "done" | "junk";
-type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
-
 export const listAll = query({
-  args: { board: v.union(v.literal("marketing"), v.literal("product")) },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     return await ctx.db
       .query("cards")
-      .withIndex("by_board", (q) => q.eq("board", args.board))
+      .withIndex("by_board", (q) => q.eq("board", "marketing"))
       .order("asc")
       .collect();
   },
@@ -20,21 +16,26 @@ export const create = mutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
-    notes: v.optional(v.string()),
-    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
-    category: v.union(v.literal("Marketing"), v.literal("Product"), v.literal("Idea")),
-    board: v.union(v.literal("marketing"), v.literal("product")),
-    column: v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk")),
+    column: v.optional(v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk"))),
     assignee: v.optional(v.union(v.literal("vlad"), v.literal("aria"), v.literal("maya"), v.literal("leo"), v.literal("sage"), v.literal("rex"))),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("cards")
-      .withIndex("by_board", (q) => q.eq("board", args.board))
+      .withIndex("by_board", (q) => q.eq("board", "marketing"))
       .order("desc")
       .first();
     const order = existing ? existing.order + 1 : 0;
-    return await ctx.db.insert("cards", { ...args, agentNotes: [], order });
+    return await ctx.db.insert("cards", {
+      title: args.title,
+      description: args.description,
+      column: args.column ?? "inbox",
+      assignee: args.assignee,
+      board: "marketing",
+      priority: "medium",
+      category: "Marketing",
+      order,
+    });
   },
 });
 
@@ -44,9 +45,7 @@ export const update = mutation({
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     notes: v.optional(v.string()),
-    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
-    category: v.optional(v.union(v.literal("Marketing"), v.literal("Product"), v.literal("Idea"))),
-    column: v.optional(v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk")),),
+    column: v.optional(v.union(v.literal("inbox"), v.literal("in-progress"), v.literal("review"), v.literal("done"), v.literal("blocked"), v.literal("junk"))),
     assignee: v.optional(v.union(v.literal("vlad"), v.literal("aria"), v.literal("maya"), v.literal("leo"), v.literal("sage"), v.literal("rex"))),
     order: v.optional(v.number()),
     docPaths: v.optional(v.array(v.string())),
@@ -69,6 +68,7 @@ export const attachDoc = mutation({
   },
 });
 
+// Keep for backward compat — agents use this
 export const addAgentNote = mutation({
   args: {
     id: v.id("cards"),
@@ -108,10 +108,7 @@ export const createBulk = mutation({
     cards: v.array(v.object({
       title: v.string(),
       description: v.optional(v.string()),
-      priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
       assignee: v.optional(v.union(v.literal("vlad"), v.literal("aria"), v.literal("maya"), v.literal("leo"), v.literal("sage"), v.literal("rex"))),
-      category: v.union(v.literal("Marketing"), v.literal("Product"), v.literal("Idea")),
-      board: v.union(v.literal("marketing"), v.literal("product")),
     })),
   },
   handler: async (ctx, args) => {
@@ -126,7 +123,9 @@ export const createBulk = mutation({
       const id = await ctx.db.insert("cards", {
         ...card,
         column: "inbox",
-        agentNotes: [],
+        board: "marketing",
+        priority: "medium",
+        category: "Marketing",
         order: order++,
       });
       ids.push(id);

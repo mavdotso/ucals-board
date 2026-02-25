@@ -6,23 +6,17 @@ import { CardModal } from "./CardModal";
 import { Id } from "@/convex/_generated/dataModel";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
-type Priority = "low" | "medium" | "high";
-type Category = "Marketing" | "Product" | "Idea";
 type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
-type Board = "marketing" | "product";
 
 interface Card {
   _id: Id<"cards">;
   title: string;
   description?: string;
-  notes?: string;
-  priority: Priority;
-  category: Category;
   column: Column;
-  board: Board;
   assignee?: Assignee;
-  agentNotes?: { agent: string; content: string; createdAt: number }[];
+  docPaths?: string[];
   order: number;
+  [key: string]: unknown;
 }
 
 const COLUMN_LABELS: Record<Column, string> = {
@@ -43,7 +37,7 @@ const COLUMN_ACCENT: Record<Column, string> = {
   "junk": "#6B6A68",
 };
 
-export function KanbanColumn({ column, cards, board }: { column: Column; cards: Card[]; board: Board }) {
+export function KanbanColumn({ column, cards }: { column: Column; cards: Card[] }) {
   const [adding, setAdding] = useState(false);
 
   return (
@@ -58,7 +52,6 @@ export function KanbanColumn({ column, cards, board }: { column: Column; cards: 
       borderRadius: "10px",
       overflow: "hidden",
     }}>
-      {/* Header */}
       <div style={{
         padding: "12px 14px 10px",
         borderBottom: "1px solid var(--border-subtle)",
@@ -75,13 +68,9 @@ export function KanbanColumn({ column, cards, board }: { column: Column; cards: 
             {COLUMN_LABELS[column]}
           </span>
           <span style={{
-            fontSize: "11px",
-            fontWeight: 500,
-            color: "var(--text-muted)",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "10px",
-            padding: "1px 7px",
+            fontSize: "11px", fontWeight: 500, color: "var(--text-muted)",
+            background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
+            borderRadius: "10px", padding: "1px 7px",
           }}>
             {cards.length}
           </span>
@@ -89,36 +78,22 @@ export function KanbanColumn({ column, cards, board }: { column: Column; cards: 
         <button
           onClick={() => setAdding(true)}
           style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontSize: "18px",
-            lineHeight: 1,
-            padding: "0 2px",
-            display: "flex",
-            alignItems: "center",
+            background: "none", border: "none", color: "var(--text-muted)",
+            cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 2px",
+            display: "flex", alignItems: "center",
           }}
           title="Add card"
-        >
-          +
-        </button>
+        >+</button>
       </div>
 
-      {/* Cards */}
       <Droppable droppableId={column}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
             style={{
-              flex: 1,
-              padding: "10px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              minHeight: "80px",
-              overflowY: "auto",
+              flex: 1, padding: "10px", display: "flex", flexDirection: "column",
+              gap: "8px", minHeight: "80px", overflowY: "auto",
               background: snapshot.isDraggingOver ? "rgba(255,255,255,0.02)" : "transparent",
               transition: "background 0.15s",
             }}
@@ -131,7 +106,7 @@ export function KanbanColumn({ column, cards, board }: { column: Column; cards: 
         )}
       </Droppable>
 
-      {adding && <CardModal defaultColumn={column} board={board} onClose={() => setAdding(false)} />}
+      {adding && <CardModal defaultColumn={column} onClose={() => setAdding(false)} />}
     </div>
   );
 }

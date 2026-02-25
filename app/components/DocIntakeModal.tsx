@@ -23,7 +23,7 @@ const AGENT_COLORS: Record<Assignee, string> = {
   rex: "#6B8A9C",
 };
 
-export function DocIntakeModal({ content, board, onClose }: { content: string; board: Board; onClose: () => void }) {
+export function DocIntakeModal({ content, onClose }: { content: string; onClose: () => void }) {
   const [parsing, setParsing] = useState(false);
   const [cards, setCards] = useState<ParsedCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +56,7 @@ export function DocIntakeModal({ content, board, onClose }: { content: string; b
       cards: cards.map((c) => ({
         title: c.title,
         description: c.description,
-        priority: c.priority,
         assignee: c.assignee,
-        category: c.category,
-        board,
       })),
     });
     onClose();
