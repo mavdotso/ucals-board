@@ -12,6 +12,7 @@ import type * as agentJobs from "../agentJobs.js";
 import type * as board from "../board.js";
 import type * as campaigns from "../campaigns.js";
 import type * as cards from "../cards.js";
+import type * as comments from "../comments.js";
 import type * as docs from "../docs.js";
 import type * as pipelines from "../pipelines.js";
 import type * as posts from "../posts.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   board: typeof board;
   campaigns: typeof campaigns;
   cards: typeof cards;
+  comments: typeof comments;
   docs: typeof docs;
   pipelines: typeof pipelines;
   posts: typeof posts;
