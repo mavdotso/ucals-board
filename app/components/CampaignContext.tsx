@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -47,6 +48,9 @@ const COLORS = [
 export function CampaignProvider({ children }: { children: ReactNode }) {
   const campaignsData = useQuery(api.campaigns.list) ?? [];
   const tagsData = useQuery(api.campaigns.listTags) ?? [];
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const createCampaign = useMutation(api.campaigns.create);
   const updateCampaignMut = useMutation(api.campaigns.update);
@@ -55,18 +59,46 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const untagItemMut = useMutation(api.campaigns.untagItem);
 
   const [activeCampaignId, _setActive] = useState<Id<"campaigns"> | null>(null);
+  const [urlSynced, setUrlSynced] = useState(false);
 
-  // Load active from localStorage (just the filter state, not the data)
+  // Sync from URL ?campaign=name on load / param change
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_ACTIVE);
-    if (saved) _setActive(saved as Id<"campaigns">);
-  }, []);
+    const campaignParam = searchParams.get("campaign");
+    if (campaignParam && campaignsData.length > 0) {
+      const match = campaignsData.find(
+        c => c.name.toLowerCase() === campaignParam.toLowerCase()
+      );
+      if (match) {
+        _setActive(match._id);
+        localStorage.setItem(STORAGE_ACTIVE, match._id);
+      }
+      setUrlSynced(true);
+    } else if (!campaignParam && !urlSynced) {
+      // No URL param — fall back to localStorage
+      const saved = localStorage.getItem(STORAGE_ACTIVE);
+      if (saved) _setActive(saved as Id<"campaigns">);
+      setUrlSynced(true);
+    }
+  }, [searchParams, campaignsData, urlSynced]);
 
   const setActiveCampaignId = useCallback((id: Id<"campaigns"> | null) => {
     _setActive(id);
     if (id) localStorage.setItem(STORAGE_ACTIVE, id);
     else localStorage.removeItem(STORAGE_ACTIVE);
-  }, []);
+
+    // Update URL
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) {
+      const campaign = campaignsData.find(c => c._id === id);
+      if (campaign) {
+        params.set("campaign", campaign.name.toLowerCase());
+      }
+    } else {
+      params.delete("campaign");
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, campaignsData, router, pathname]);
 
   const campaigns = campaignsData as Campaign[];
   const tags = tagsData as CampaignTag[];

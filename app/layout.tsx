@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { ConvexClientProvider } from "./convex-provider";
 import { CampaignProvider } from "./components/CampaignContext";
@@ -13,9 +14,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <ConvexClientProvider>
-          <CampaignProvider>
-            {children}
-          </CampaignProvider>
+          <Suspense>
+            <CampaignProvider>
+              {children}
+            </CampaignProvider>
+          </Suspense>
         </ConvexClientProvider>
       </body>
     </html>
