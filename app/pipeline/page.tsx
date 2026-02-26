@@ -406,9 +406,9 @@ export default function PipelinePage() {
 
                 {colCards.sort((a, b) => b.updatedAt - a.updatedAt).map(card => (
                   <div
-                    key={card.id}
+                    key={card._id}
                     draggable
-                    onDragStart={() => onDragStart(card.id)}
+                    onDragStart={() => onDragStart(card._id)}
                     onClick={() => setEditingCard(card)}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
@@ -416,10 +416,10 @@ export default function PipelinePage() {
                       padding: "10px 12px", margin: "0 4px", borderRadius: 8,
                       background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
                       cursor: "grab", transition: "border-color 0.15s",
-                      opacity: dragCard === card.id ? 0.4 : 1,
+                      opacity: dragCard === card._id ? 0.4 : 1,
                     }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 3 }}>{card.title}</div>
-                    <div style={{ marginBottom: 4 }}><CampaignTag itemId={card.id} /></div>
+                    <div style={{ marginBottom: 4 }}><CampaignTag itemId={card._id} /></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {pipeline.cardFields.slice(0, 3).map(f => {
                         const val = card.fields[f.key];
@@ -461,7 +461,7 @@ export default function PipelinePage() {
               onChange={e => {
                 const updated = { ...editingCard, title: e.target.value };
                 setEditingCard(updated);
-                updateCard(updated.id, { title: e.target.value });
+                updateCard(updated._id, { title: e.target.value });
               }}
               style={{
                 width: "100%", fontSize: 16, fontWeight: 600, color: "var(--text-primary)",
@@ -475,7 +475,7 @@ export default function PipelinePage() {
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {pipeline.columns.map((col, i) => (
                   <button key={col} onClick={() => {
-                    moveCard(editingCard.id, col);
+                    moveCard(editingCard._id, col);
                     setEditingCard({ ...editingCard, column: col });
                   }} style={{
                     padding: "4px 10px", borderRadius: 5, fontSize: 11, cursor: "pointer",
@@ -497,7 +497,7 @@ export default function PipelinePage() {
                     onChange={e => {
                       const fields = { ...editingCard.fields, [f.key]: e.target.value };
                       setEditingCard({ ...editingCard, fields });
-                      updateCard(editingCard.id, { fields });
+                      updateCard(editingCard._id, { fields });
                     }}
                     style={{
                       width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
@@ -513,7 +513,7 @@ export default function PipelinePage() {
                     onChange={e => {
                       const fields = { ...editingCard.fields, [f.key]: e.target.value };
                       setEditingCard({ ...editingCard, fields });
-                      updateCard(editingCard.id, { fields });
+                      updateCard(editingCard._id, { fields });
                     }}
                     placeholder={f.label}
                     style={{
@@ -527,7 +527,7 @@ export default function PipelinePage() {
             ))}
 
             <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
-              <button onClick={() => deleteCard(editingCard.id)} style={{
+              <button onClick={() => deleteCard(editingCard._id)} style={{
                 background: "none", border: "none", color: "#EF4444", fontSize: 12, cursor: "pointer",
               }}>Delete</button>
               <button onClick={() => setEditingCard(null)} style={{
