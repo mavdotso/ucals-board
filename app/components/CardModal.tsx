@@ -26,16 +26,26 @@ interface CardModalProps {
   onClose: () => void;
 }
 
-const ASSIGNEES: { id: Assignee; label: string; color: string }[] = [
-  { id: "vlad", label: "Vlad", color: "#F5F4F2" },
-  { id: "aria", label: "Aria", color: "#BD632F" },
-  { id: "maya", label: "Maya", color: "#A4243B" },
-  { id: "leo", label: "Leo", color: "#D8973C" },
-  { id: "sage", label: "Sage", color: "#5C8A6C" },
-  { id: "rex", label: "Rex", color: "#6B8A9C" },
+const ASSIGNEES: { id: Assignee; label: string; role: string; color: string }[] = [
+  { id: "vlad", label: "Vlad", role: "Founder", color: "#F5F4F2" },
+  { id: "aria", label: "Aria", role: "Strategy", color: "#BD632F" },
+  { id: "maya", label: "Maya", role: "Copy", color: "#A4243B" },
+  { id: "leo", label: "Leo", role: "Social", color: "#D8973C" },
+  { id: "sage", label: "Sage", role: "SEO/GEO", color: "#5C8A6C" },
+  { id: "rex", label: "Rex", role: "Paid Ads", color: "#6B8A9C" },
 ];
 
 const ASSIGNEE_COLORS: Record<string, string> = Object.fromEntries(ASSIGNEES.map(a => [a.id, a.color]));
+const ASSIGNEE_ROLES: Record<string, string> = Object.fromEntries(ASSIGNEES.map(a => [a.id, a.role]));
+
+const COLUMNS: { id: Column; label: string }[] = [
+  { id: "inbox", label: "Inbox" },
+  { id: "in-progress", label: "In Progress" },
+  { id: "review", label: "Review" },
+  { id: "blocked", label: "Blocked" },
+  { id: "done", label: "Done" },
+  { id: "junk", label: "Junk" },
+];
 
 export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalProps) {
   const create = useMutation(api.cards.create);
@@ -62,7 +72,6 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
     role: "agent" as const,
     content: n.content,
     createdAt: n.createdAt,
-    source: "note" as const,
   }));
   const commentItems = comments.map(c => ({
     id: c._id,
@@ -70,7 +79,6 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
     role: c.role,
     content: c.content,
     createdAt: c.createdAt,
-    source: "comment" as const,
   }));
   const activity = [...agentNotes, ...commentItems].sort((a, b) => a.createdAt - b.createdAt);
 
@@ -102,7 +110,6 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
     setCommentText("");
     setSendingComment(false);
 
-    // Notify Anya via webhook
     try {
       await fetch("https://first-viper-528.convex.site/api/tasks", {
         method: "POST",
@@ -117,7 +124,7 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
         }),
       });
     } catch {
-      // Non-critical — comment is saved regardless
+      // Non-critical
     }
   }
 
@@ -178,24 +185,46 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
             }}
           />
 
-          {/* Assignee */}
-          <div>
-            <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assign to</label>
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              {ASSIGNEES.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => setAssignee(assignee === a.id ? undefined : a.id)}
-                  style={{
-                    padding: "5px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
-                    border: assignee === a.id ? `1px solid ${a.color}` : "1px solid var(--border-default)",
-                    background: assignee === a.id ? `${a.color}22` : "var(--bg-card)",
-                    color: assignee === a.id ? a.color : "var(--text-muted)",
-                  }}
-                >
-                  {a.label}
-                </button>
-              ))}
+          {/* Assignee + Stage — side by side */}
+          <div style={{ display: "flex", gap: "16px" }}>
+            {/* Assignee */}
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assign to</label>
+              <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+                {ASSIGNEES.map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => setAssignee(assignee === a.id ? undefined : a.id)}
+                    title={a.label}
+                    style={{
+                      padding: "4px 8px", borderRadius: "5px", fontSize: "11px", fontWeight: 500, cursor: "pointer",
+                      border: assignee === a.id ? `1px solid ${a.color}` : "1px solid var(--border-default)",
+                      background: assignee === a.id ? `${a.color}22` : "var(--bg-card)",
+                      color: assignee === a.id ? a.color : "var(--text-muted)",
+                    }}
+                  >
+                    {a.role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stage */}
+            <div style={{ minWidth: "130px" }}>
+              <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Stage</label>
+              <select
+                value={column}
+                onChange={(e) => setColumn(e.target.value as Column)}
+                style={{
+                  width: "100%", background: "var(--bg-card)", border: "1px solid var(--border-default)",
+                  borderRadius: "6px", padding: "6px 10px", color: "var(--text-primary)",
+                  fontSize: "12px", outline: "none",
+                }}
+              >
+                {COLUMNS.map(c => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -229,17 +258,18 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
             </div>
           )}
 
-          {/* Activity thread — merged agentNotes + comments */}
+          {/* Activity thread */}
           {card && (
             <div>
               <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Activity {activity.length > 0 && `(${activity.length})`}
               </label>
               {activity.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "280px", overflowY: "auto", marginBottom: "8px", paddingRight: "4px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto", marginBottom: "8px", paddingRight: "4px" }}>
                   {activity.map((item) => {
                     const isHuman = item.role === "human";
                     const color = ASSIGNEE_COLORS[item.author] ?? "var(--text-muted)";
+                    const role = ASSIGNEE_ROLES[item.author] ?? item.author;
                     return (
                       <div key={item.id} style={{
                         background: isHuman ? "var(--bg-card)" : `${color}0a`,
@@ -248,8 +278,8 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
                         marginLeft: isHuman ? "0" : "12px",
                       }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                          <span style={{ fontSize: "11px", fontWeight: 600, color: isHuman ? "var(--text-primary)" : color, textTransform: "capitalize" }}>
-                            {item.author}
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: isHuman ? "var(--text-primary)" : color }}>
+                            {isHuman ? "Vlad" : role}
                           </span>
                           <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
                             {new Date(item.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -291,26 +321,6 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
               </div>
             </div>
           )}
-
-          {/* Column */}
-          <div>
-            <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Column</label>
-            <select
-              value={column}
-              onChange={(e) => setColumn(e.target.value as Column)}
-              style={{
-                width: "100%", background: "var(--bg-card)", border: "1px solid var(--border-default)",
-                borderRadius: "8px", padding: "8px 12px", color: "var(--text-primary)",
-                fontSize: "13px", outline: "none",
-              }}
-            >
-              <option value="inbox">Inbox</option>
-              <option value="in-progress">In Progress</option>
-              <option value="review">Review</option>
-              <option value="done">Done</option>
-              <option value="junk">Junk</option>
-            </select>
-          </div>
         </div>
 
         {/* Footer */}

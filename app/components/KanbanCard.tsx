@@ -16,6 +16,11 @@ const ASSIGNEE_COLORS: Record<Assignee, string> = {
   leo: "#D8973C", sage: "#5C8A6C", rex: "#6B8A9C",
 };
 
+const ASSIGNEE_ROLES: Record<Assignee, string> = {
+  vlad: "Founder", aria: "Strategy", maya: "Copy",
+  leo: "Social", sage: "SEO/GEO", rex: "Paid Ads",
+};
+
 interface Card {
   _id: Id<"cards">;
   title: string;
@@ -129,9 +134,9 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
                 {card.assignee && (
                   <span style={{
                     fontSize: "11px", fontWeight: 600, padding: "2px 7px", borderRadius: "4px",
-                    background: `${ASSIGNEE_COLORS[card.assignee]}22`, color: ASSIGNEE_COLORS[card.assignee], textTransform: "capitalize",
+                    background: `${ASSIGNEE_COLORS[card.assignee]}22`, color: ASSIGNEE_COLORS[card.assignee],
                   }}>
-                    {card.assignee}
+                    {ASSIGNEE_ROLES[card.assignee]}
                   </span>
                 )}
                 {commentCount > 0 && (

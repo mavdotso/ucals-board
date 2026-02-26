@@ -15,11 +15,11 @@ type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 const COLUMNS: Column[] = ["inbox", "in-progress", "review", "blocked", "done", "junk"];
 
 const AGENTS = [
-  { id: "aria", label: "Aria", color: "#BD632F" },
-  { id: "maya", label: "Maya", color: "#A4243B" },
-  { id: "leo", label: "Leo", color: "#D8973C" },
-  { id: "sage", label: "Sage", color: "#5C8A6C" },
-  { id: "rex", label: "Rex", color: "#6B8A9C" },
+  { id: "aria", label: "Strategy", color: "#BD632F" },
+  { id: "maya", label: "Copy", color: "#A4243B" },
+  { id: "leo", label: "Social", color: "#D8973C" },
+  { id: "sage", label: "SEO/GEO", color: "#5C8A6C" },
+  { id: "rex", label: "Paid Ads", color: "#6B8A9C" },
   { id: "vlad", label: "Vlad", color: "#F5F4F2" },
 ];
 
