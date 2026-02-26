@@ -14,6 +14,7 @@ import type * as campaigns from "../campaigns.js";
 import type * as cards from "../cards.js";
 import type * as comments from "../comments.js";
 import type * as docs from "../docs.js";
+import type * as pipelineCards from "../pipelineCards.js";
 import type * as pipelines from "../pipelines.js";
 import type * as posts from "../posts.js";
 import type * as search from "../search.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   cards: typeof cards;
   comments: typeof comments;
   docs: typeof docs;
+  pipelineCards: typeof pipelineCards;
   pipelines: typeof pipelines;
   posts: typeof posts;
   search: typeof search;

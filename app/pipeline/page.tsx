@@ -1,5 +1,8 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Nav } from "@/app/components/Nav";
 import { useCampaign } from "@/app/components/CampaignContext";
 import { CampaignTag } from "@/app/components/CampaignTag";
@@ -30,7 +33,7 @@ interface FieldDef {
 }
 
 interface PipelineCard {
-  id: string;
+  _id: Id<"pipelineCards">;
   pipelineId: string;
   column: string;
   title: string;
@@ -170,19 +173,6 @@ const PIPELINES: PipelineConfig[] = [
   },
 ];
 
-// ─── Persistence ─────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = "ucals-pipeline-cards";
-const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-
-function loadCards(): PipelineCard[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
-}
-function saveCards(cards: PipelineCard[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); } catch {}
-}
-
 // ─── Column colors ───────────────────────────────────────────────────────────
 
 const COL_COLORS = [
@@ -269,7 +259,6 @@ function StageInfo({ meta, color }: { meta: StageMeta; color: string }) {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function PipelinePage() {
-  const [cards, setCards] = useState<PipelineCard[]>([]);
   const [activePipeline, setActivePipeline] = useState(PIPELINES[0].id);
   const [editingCard, setEditingCard] = useState<PipelineCard | null>(null);
   const [addingCol, setAddingCol] = useState<string | null>(null);
@@ -278,46 +267,41 @@ export default function PipelinePage() {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const addInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setCards(loadCards()); }, []);
-  useEffect(() => { if (cards.length || localStorage.getItem(STORAGE_KEY)) saveCards(cards); }, [cards]);
+  const allCards = (useQuery(api.pipelineCards.list, { pipelineId: activePipeline }) ?? []) as PipelineCard[];
+  const createCard = useMutation(api.pipelineCards.create);
+  const updateCardMut = useMutation(api.pipelineCards.update);
+  const removeCard = useMutation(api.pipelineCards.remove);
 
   const { activeCampaignId, itemMatchesCampaign } = useCampaign();
 
   const pipeline = PIPELINES.find(p => p.id === activePipeline)!;
-  const pipelineCards = cards
-    .filter(c => c.pipelineId === activePipeline)
-    .filter(c => itemMatchesCampaign(c.id, activeCampaignId));
+  const pipelineCards = allCards.filter(c => itemMatchesCampaign(c._id, activeCampaignId));
 
-  function addCard(column: string) {
+  async function addCard(column: string) {
     if (!newTitle.trim()) return;
-    const card: PipelineCard = {
-      id: uid(), pipelineId: activePipeline, column,
-      title: newTitle.trim(), fields: {},
-      createdAt: Date.now(), updatedAt: Date.now(),
-    };
-    setCards(prev => [...prev, card]);
+    await createCard({ pipelineId: activePipeline, column, title: newTitle.trim() });
     setNewTitle("");
     setAddingCol(null);
   }
 
-  function updateCard(id: string, updates: Partial<PipelineCard>) {
-    setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c));
+  async function updateCard(id: Id<"pipelineCards">, updates: { column?: string; title?: string; fields?: Record<string, string> }) {
+    await updateCardMut({ id, ...updates });
   }
 
-  function deleteCard(id: string) {
-    setCards(prev => prev.filter(c => c.id !== id));
+  async function deleteCard(id: Id<"pipelineCards">) {
+    await removeCard({ id });
     setEditingCard(null);
   }
 
-  function moveCard(id: string, toCol: string) {
-    setCards(prev => prev.map(c => c.id === id ? { ...c, column: toCol, updatedAt: Date.now() } : c));
+  async function moveCard(id: Id<"pipelineCards">, toCol: string) {
+    await updateCardMut({ id, column: toCol });
   }
 
   function onDragStart(cardId: string) { setDragCard(cardId); }
   function onDragOver(e: React.DragEvent, col: string) { e.preventDefault(); setDragOverCol(col); }
   function onDragLeave() { setDragOverCol(null); }
   function onDrop(col: string) {
-    if (dragCard) moveCard(dragCard, col);
+    if (dragCard) moveCard(dragCard as Id<"pipelineCards">, col);
     setDragCard(null);
     setDragOverCol(null);
   }
@@ -326,23 +310,20 @@ export default function PipelinePage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
       <Nav active="/pipeline" right={
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          {PIPELINES.map(p => {
-            const count = cards.filter(c => c.pipelineId === p.id).length;
-            return (
-              <button key={p.id} onClick={() => setActivePipeline(p.id)} style={{
-                padding: "4px 10px", borderRadius: 6, fontSize: 12, cursor: "pointer",
-                background: activePipeline === p.id ? "var(--bg-card-elevated)" : "transparent",
-                border: activePipeline === p.id ? "1px solid var(--border-default)" : "1px solid transparent",
-                color: activePipeline === p.id ? "var(--text-primary)" : "var(--text-muted)",
-                fontWeight: activePipeline === p.id ? 600 : 400,
-                display: "flex", alignItems: "center", gap: 4,
-              }}>
-                <span style={{ fontSize: 13 }}>{p.icon}</span>
-                {p.name}
-                {count > 0 && <span style={{ fontSize: 10, opacity: 0.6 }}>({count})</span>}
-              </button>
-            );
-          })}
+          {PIPELINES.map(p => (
+            <button key={p.id} onClick={() => setActivePipeline(p.id)} style={{
+              padding: "4px 10px", borderRadius: 6, fontSize: 12, cursor: "pointer",
+              background: activePipeline === p.id ? "var(--bg-card-elevated)" : "transparent",
+              border: activePipeline === p.id ? "1px solid var(--border-default)" : "1px solid transparent",
+              color: activePipeline === p.id ? "var(--text-primary)" : "var(--text-muted)",
+              fontWeight: activePipeline === p.id ? 600 : 400,
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              <span style={{ fontSize: 13 }}>{p.icon}</span>
+              {p.name}
+              {activePipeline === p.id && allCards.length > 0 && <span style={{ fontSize: 10, opacity: 0.6 }}>({allCards.length})</span>}
+            </button>
+          ))}
         </div>
       } />
 

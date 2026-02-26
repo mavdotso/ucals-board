@@ -160,6 +160,16 @@ export default defineSchema({
   })
     .index("by_card", ["cardId", "createdAt"]),
 
+  pipelineCards: defineTable({
+    pipelineId: v.string(),
+    column: v.string(),
+    title: v.string(),
+    fields: v.any(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_pipeline", ["pipelineId", "updatedAt"]),
+
   boardNodes: defineTable({
     type: v.literal("note"),
     x: v.number(),
