@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Draggable } from "@hello-pangea/dnd";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { CardModal } from "./CardModal";
-import { DocPreview } from "./DocPreview";
+import { DocSheet } from "./DocSheet";
 import { CampaignTag } from "./CampaignTag";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -29,7 +28,6 @@ interface Card {
 }
 
 export function KanbanCard({ card, index }: { card: Card; index: number }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [previewDocId, setPreviewDocId] = useState<Id<"docs"> | null>(null);
 
@@ -107,10 +105,7 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
                     key={doc._id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      const params = new URLSearchParams();
-                      if (doc.folder) params.set("folder", doc.folder);
-                      params.set("doc", doc._id);
-                      router.push(`/docs?${params.toString()}`);
+                      setPreviewDocId(doc._id as Id<"docs">);
                     }}
                     style={{
                       display: "flex", alignItems: "center", gap: "6px",
@@ -151,7 +146,7 @@ export function KanbanCard({ card, index }: { card: Card; index: number }) {
       </Draggable>
 
       {editing && <CardModal card={card} onClose={() => setEditing(false)} />}
-      {previewDocId && <DocPreview docId={previewDocId} onClose={() => setPreviewDocId(null)} />}
+      {previewDocId && <DocSheet docId={previewDocId} onClose={() => setPreviewDocId(null)} />}
     </>
   );
 }

@@ -12,7 +12,7 @@ import { useCampaign } from "./CampaignContext";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 
-const COLUMNS: Column[] = ["inbox", "in-progress", "review", "done", "blocked", "junk"];
+const COLUMNS: Column[] = ["inbox", "in-progress", "review", "blocked", "done", "junk"];
 
 const AGENTS = [
   { id: "aria", label: "Aria", color: "#BD632F" },

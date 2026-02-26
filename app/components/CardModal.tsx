@@ -1,9 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { DocSheet } from "./DocSheet";
 
 type Column = "inbox" | "in-progress" | "review" | "done" | "blocked" | "junk";
 type Assignee = "vlad" | "aria" | "maya" | "leo" | "sage" | "rex";
@@ -38,8 +38,8 @@ const ASSIGNEES: { id: Assignee; label: string; color: string }[] = [
 const ASSIGNEE_COLORS: Record<string, string> = Object.fromEntries(ASSIGNEES.map(a => [a.id, a.color]));
 
 export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalProps) {
-  const router = useRouter();
   const create = useMutation(api.cards.create);
+  const [sheetDocId, setSheetDocId] = useState<Id<"docs"> | null>(null);
   const update = useMutation(api.cards.update);
   const remove = useMutation(api.cards.remove);
   const linkedDocs = useQuery(api.docs.byPaths, { paths: card?.docPaths ?? [] }) ?? [];
@@ -207,13 +207,7 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
                 {linkedDocs.map((doc) => (
                   <div
                     key={doc._id}
-                    onClick={() => {
-                      const params = new URLSearchParams();
-                      if (doc.folder) params.set("folder", doc.folder);
-                      params.set("doc", doc._id);
-                      router.push(`/docs?${params.toString()}`);
-                      onClose();
-                    }}
+                    onClick={() => setSheetDocId(doc._id as Id<"docs">)}
                     style={{
                       display: "flex", alignItems: "center", gap: "8px",
                       padding: "8px 10px", borderRadius: "7px",
@@ -340,6 +334,8 @@ export function CardModal({ card, defaultColumn = "inbox", onClose }: CardModalP
           </div>
         </div>
       </div>
+
+      {sheetDocId && <DocSheet docId={sheetDocId} onClose={() => setSheetDocId(null)} />}
     </div>
   );
 }
