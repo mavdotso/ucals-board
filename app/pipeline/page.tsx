@@ -6,6 +6,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Nav } from "@/app/components/Nav";
 import { useCampaign } from "@/app/components/CampaignContext";
 import { CampaignTag } from "@/app/components/CampaignTag";
+import { AdReviewPanel } from "@/app/components/AdReviewPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -261,6 +262,7 @@ function StageInfo({ meta, color }: { meta: StageMeta; color: string }) {
 export default function PipelinePage() {
   const [activePipeline, setActivePipeline] = useState(PIPELINES[0].id);
   const [editingCard, setEditingCard] = useState<PipelineCard | null>(null);
+  const [reviewCard, setReviewCard] = useState<PipelineCard | null>(null);
   const [addingCol, setAddingCol] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [dragCard, setDragCard] = useState<string | null>(null);
@@ -409,7 +411,13 @@ export default function PipelinePage() {
                     key={card._id}
                     draggable
                     onDragStart={() => onDragStart(card._id)}
-                    onClick={() => setEditingCard(card)}
+                    onClick={() => {
+                      if (activePipeline === "ads" && card.column === "Review" && card.fields.imgFile) {
+                        setReviewCard(card);
+                      } else {
+                        setEditingCard(card);
+                      }
+                    }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
                     style={{
@@ -418,6 +426,16 @@ export default function PipelinePage() {
                       cursor: "grab", transition: "border-color 0.15s",
                       opacity: dragCard === card._id ? 0.4 : 1,
                     }}>
+                    {activePipeline === "ads" && card.fields.imgFile && (
+                      <img
+                        src={`/api/ad-preview/${encodeURIComponent(card.fields.imgFile)}`}
+                        alt=""
+                        style={{
+                          width: "100%", borderRadius: 6, marginBottom: 6,
+                          border: "1px solid var(--border-subtle)",
+                        }}
+                      />
+                    )}
                     <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 3 }}>{card.title}</div>
                     <div style={{ marginBottom: 4 }}><CampaignTag itemId={card._id} /></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -537,6 +555,13 @@ export default function PipelinePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {reviewCard && (
+        <AdReviewPanel
+          card={reviewCard}
+          onClose={() => setReviewCard(null)}
+        />
       )}
 
       {pipelineCards.length === 0 && !addingCol && (
