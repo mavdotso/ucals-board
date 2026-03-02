@@ -18,7 +18,7 @@ export function AdReviewPanel({ card, onClose }: AdReviewPanelProps) {
   const [acting, setActing] = useState(false);
   const f = card.fields;
 
-  const imgUrl = f.imgFile ? `/api/ad-preview/${encodeURIComponent(f.imgFile)}` : null;
+  const imgUrl = f.previewImage || (f.imgFile ? `/api/ad-preview/${encodeURIComponent(f.imgFile)}` : null);
 
   async function handleAccept() {
     setActing(true);

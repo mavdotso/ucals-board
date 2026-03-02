@@ -412,7 +412,7 @@ export default function PipelinePage() {
                     draggable
                     onDragStart={() => onDragStart(card._id)}
                     onClick={() => {
-                      if (activePipeline === "ads" && card.column === "Review" && card.fields.imgFile) {
+                      if (activePipeline === "ads" && card.column === "Review" && (card.fields.previewImage || card.fields.imgFile)) {
                         setReviewCard(card);
                       } else {
                         setEditingCard(card);
@@ -426,9 +426,9 @@ export default function PipelinePage() {
                       cursor: "grab", transition: "border-color 0.15s",
                       opacity: dragCard === card._id ? 0.4 : 1,
                     }}>
-                    {activePipeline === "ads" && card.fields.imgFile && (
+                    {activePipeline === "ads" && (card.fields.previewImage || card.fields.imgFile) && (
                       <img
-                        src={`/api/ad-preview/${encodeURIComponent(card.fields.imgFile)}`}
+                        src={card.fields.previewImage || `/api/ad-preview/${encodeURIComponent(card.fields.imgFile)}`}
                         alt=""
                         style={{
                           width: "100%", borderRadius: 6, marginBottom: 6,
