@@ -1,5 +1,6 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -259,8 +260,15 @@ function StageInfo({ meta, color }: { meta: StageMeta; color: string }) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function PipelinePage() {
-  const [activePipeline, setActivePipeline] = useState(PIPELINES[0].id);
+function PipelinePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Derive active pipeline from URL ?p= param, fallback to first pipeline
+  const pParam = searchParams.get("p");
+  const validPipeline = PIPELINES.find(p => p.id === pParam);
+  const activePipeline = validPipeline ? validPipeline.id : PIPELINES[0].id;
+
   const [editingCard, setEditingCard] = useState<PipelineCard | null>(null);
   const [reviewCard, setReviewCard] = useState<PipelineCard | null>(null);
   const [addingCol, setAddingCol] = useState<string | null>(null);
@@ -273,6 +281,45 @@ export default function PipelinePage() {
   const createCard = useMutation(api.pipelineCards.create);
   const updateCardMut = useMutation(api.pipelineCards.update);
   const removeCard = useMutation(api.pipelineCards.remove);
+
+  // When a ?card= param is present and cards are loaded, open that card
+  const cardParam = searchParams.get("card");
+  useEffect(() => {
+    if (!cardParam || allCards.length === 0) return;
+    const target = allCards.find(c => c._id === cardParam);
+    if (!target) return;
+    if (activePipeline === "ads" && target.column === "Review" && (target.fields.previewImage || target.fields.imgFile)) {
+      setReviewCard(target);
+    } else {
+      setEditingCard(target);
+    }
+  }, [cardParam, allCards, activePipeline]);
+
+  function setActivePipeline(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("p", id);
+    params.delete("card"); // clear card selection when switching pipeline
+    router.replace(`/pipeline?${params.toString()}`);
+  }
+
+  function openCard(card: PipelineCard) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("card", card._id);
+    router.replace(`/pipeline?${params.toString()}`, { scroll: false });
+    if (activePipeline === "ads" && card.column === "Review" && (card.fields.previewImage || card.fields.imgFile)) {
+      setReviewCard(card);
+    } else {
+      setEditingCard(card);
+    }
+  }
+
+  function closeCard() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("card");
+    router.replace(`/pipeline?${params.toString()}`, { scroll: false });
+    setEditingCard(null);
+    setReviewCard(null);
+  }
 
   const { activeCampaignId, itemMatchesCampaign } = useCampaign();
 
@@ -411,13 +458,7 @@ export default function PipelinePage() {
                     key={card._id}
                     draggable
                     onDragStart={() => onDragStart(card._id)}
-                    onClick={() => {
-                      if (activePipeline === "ads" && card.column === "Review" && (card.fields.previewImage || card.fields.imgFile)) {
-                        setReviewCard(card);
-                      } else {
-                        setEditingCard(card);
-                      }
-                    }}
+                    onClick={() => openCard(card)}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--border-default)"; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-subtle)"; }}
                     style={{
@@ -462,13 +503,13 @@ export default function PipelinePage() {
       {/* Edit card modal */}
       {editingCard && (
         <div
-          onClick={() => setEditingCard(null)}
+          onClick={() => closeCard()}
           style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
           }}>
           <div
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             style={{
               background: "var(--bg-card)", border: "1px solid var(--border-default)",
               borderRadius: 12, padding: "24px", width: 420, maxHeight: "80vh", overflowY: "auto",
@@ -548,7 +589,7 @@ export default function PipelinePage() {
               <button onClick={() => deleteCard(editingCard._id)} style={{
                 background: "none", border: "none", color: "#EF4444", fontSize: 12, cursor: "pointer",
               }}>Delete</button>
-              <button onClick={() => setEditingCard(null)} style={{
+              <button onClick={() => closeCard()} style={{
                 background: "var(--text-primary)", border: "none", borderRadius: 6,
                 padding: "6px 16px", color: "var(--bg-app)", fontSize: 12, fontWeight: 600, cursor: "pointer",
               }}>Done</button>
@@ -560,7 +601,7 @@ export default function PipelinePage() {
       {reviewCard && (
         <AdReviewPanel
           card={reviewCard}
-          onClose={() => setReviewCard(null)}
+          onClose={() => closeCard()}
         />
       )}
 
@@ -576,5 +617,13 @@ export default function PipelinePage() {
 
       <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
     </div>
+  );
+}
+
+export default function PipelinePageWrapper() {
+  return (
+    <Suspense>
+      <PipelinePage />
+    </Suspense>
   );
 }
