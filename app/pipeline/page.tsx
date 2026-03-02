@@ -148,6 +148,7 @@ const PIPELINES: PipelineConfig[] = [
       { key: "audience", label: "Audience", type: "select", options: ["cold", "retargeting", "lookalike"] },
       { key: "budget", label: "Budget", type: "text" },
       { key: "format", label: "Format", type: "select", options: ["image", "video", "carousel"] },
+      { key: "landingPage", label: "Landing Page URL", type: "url" },
       { key: "creativeLink", label: "Creative Link", type: "url" },
       { key: "performance", label: "Performance Notes", type: "text" },
     ],

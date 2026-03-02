@@ -169,6 +169,16 @@ export function AdReviewPanel({ card, onClose }: AdReviewPanelProps) {
                 </span>
               </div>
             )}
+            {f.landingPage && (
+              <div>
+                <Label>Landing Page</Label>
+                <a href={f.landingPage} target="_blank" rel="noopener noreferrer" style={{
+                  fontSize: 13, color: "#BD632F", wordBreak: "break-all",
+                }}>
+                  {f.landingPage}
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
