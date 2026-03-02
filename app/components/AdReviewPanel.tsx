@@ -104,6 +104,21 @@ export function AdReviewPanel({ card, onClose }: AdReviewPanelProps) {
 
           {/* Copy */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Brief context */}
+            {(f.icp || f.angle || f.competitorIntel) && (
+              <div style={{
+                padding: "10px 14px", borderRadius: 8,
+                background: "var(--bg-card, #1a1918)",
+                border: "1px solid var(--border-subtle, #2a2927)",
+                display: "flex", flexDirection: "column", gap: 6,
+              }}>
+                {f.icp && <div style={{ fontSize: 12, fontWeight: 700, color: "#BD632F", textTransform: "uppercase", letterSpacing: "0.06em" }}>{f.icp}</div>}
+                {f.angle && <div style={{ fontSize: 13, color: "var(--text-primary, #f5f4f2)", lineHeight: 1.4 }}>{f.angle}</div>}
+                {f.competitorIntel && <div style={{ fontSize: 12, color: "var(--text-muted, #6b6a68)", lineHeight: 1.4, fontStyle: "italic" }}>💡 {f.competitorIntel}</div>}
+              </div>
+            )}
+
             {/* Hook */}
             {f.hook && (
               <div>
