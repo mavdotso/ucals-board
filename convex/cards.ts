@@ -2,13 +2,18 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const listAll = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db
-      .query("cards")
-      .withIndex("by_board", (q) => q.eq("board", "marketing"))
-      .order("asc")
-      .collect();
+  args: {
+    board: v.optional(v.union(v.literal("marketing"), v.literal("product"))),
+  },
+  handler: async (ctx, args) => {
+    if (args.board) {
+      return await ctx.db
+        .query("cards")
+        .withIndex("by_board", (q) => q.eq("board", args.board!))
+        .order("asc")
+        .collect();
+    }
+    return await ctx.db.query("cards").order("asc").collect();
   },
 });
 

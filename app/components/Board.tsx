@@ -34,7 +34,7 @@ export function Board() {
 
   const { activeCampaignId, itemMatchesCampaign } = useCampaign();
 
-  const cards = useQuery(api.cards.listAll) ?? [];
+  const cards = useQuery(api.cards.listAll, {}) ?? [];
 
   const filteredCards = cards
     .filter((c) => !activeAgent || c.assignee === activeAgent)

@@ -481,17 +481,44 @@ function PipelinePage() {
                     <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 3 }}>{card.title}</div>
                     <div style={{ marginBottom: 4 }}><CampaignTag itemId={card._id} /></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {pipeline.cardFields.slice(0, 3).map(f => {
-                        const val = card.fields[f.key];
-                        if (!val) return null;
-                        return (
-                          <span key={f.key} style={{
-                            fontSize: 10, color: "var(--text-muted)",
-                            background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
-                            borderRadius: 4, padding: "1px 6px",
-                          }}>{val}</span>
-                        );
-                      })}
+                      {activePipeline === "ads" ? (
+                        <>
+                          {card.fields.hook && (
+                            <span style={{
+                              fontSize: 10, color: "var(--text-secondary)",
+                              background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                              borderRadius: 4, padding: "1px 6px",
+                              maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            }}>"{card.fields.hook}"</span>
+                          )}
+                          {card.fields.platforms && (
+                            <span style={{
+                              fontSize: 10, color: "#3B82F6",
+                              background: "#3B82F610", border: "1px solid #3B82F620",
+                              borderRadius: 4, padding: "1px 6px",
+                            }}>{card.fields.platforms}</span>
+                          )}
+                          {card.fields.sizeCount && (
+                            <span style={{
+                              fontSize: 10, color: "#5C8A6C",
+                              background: "#5C8A6C10", border: "1px solid #5C8A6C20",
+                              borderRadius: 4, padding: "1px 6px",
+                            }}>{card.fields.sizeCount} sizes</span>
+                          )}
+                        </>
+                      ) : (
+                        pipeline.cardFields.slice(0, 3).map(f => {
+                          const val = card.fields[f.key];
+                          if (!val) return null;
+                          return (
+                            <span key={f.key} style={{
+                              fontSize: 10, color: "var(--text-muted)",
+                              background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+                              borderRadius: 4, padding: "1px 6px",
+                            }}>{val}</span>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 ))}

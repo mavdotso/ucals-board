@@ -38,8 +38,14 @@ export const update = mutation({
     fields: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const { id, ...patch } = args;
-    await ctx.db.patch(id, { ...patch, updatedAt: Date.now() });
+    const { id, fields, ...rest } = args;
+    const patch: Record<string, unknown> = { ...rest, updatedAt: Date.now() };
+    // Merge fields instead of replacing — preserves hook/icp/angle/copy when only updating sizes
+    if (fields !== undefined) {
+      const existing = await ctx.db.get(id);
+      patch.fields = { ...(existing?.fields ?? {}), ...fields };
+    }
+    await ctx.db.patch(id, patch);
   },
 });
 
