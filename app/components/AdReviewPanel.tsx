@@ -124,14 +124,15 @@ const SIZE_LABELS: Record<string, { label: string; dims: string; platform: strin
 
 const CREATIVES_BASE = "/api/ad-preview/";
 
-function SizeRow({ sizeKey, file, previewImage }: {
-  sizeKey: string; file: string; previewImage?: string;
+function SizeRow({ sizeKey, file, previewImage, sizeImage }: {
+  sizeKey: string; file: string; previewImage?: string; sizeImage?: string;
 }) {
   const meta = SIZE_LABELS[sizeKey];
   const [hovered, setHovered] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  const imgSrc = `${CREATIVES_BASE}${encodeURIComponent(file)}`;
+  // Prefer base64 sizeImage stored in Convex (works on Vercel), fall back to local API route
+  const imgSrc = sizeImage || `${CREATIVES_BASE}${encodeURIComponent(file)}`;
 
   // Popup dimensions based on aspect ratio
   const [w, h] = meta ? meta.dims.split("×").map(Number) : [1080, 1080];
@@ -184,7 +185,7 @@ function SizeRow({ sizeKey, file, previewImage }: {
           <img
             src={imgSrc}
             alt={meta?.label}
-            style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+            style={{ width: "100%", height: "100%", objectFit: "fill", display: "block" }}
             onError={(e) => {
               if (previewImage) (e.target as HTMLImageElement).src = previewImage;
             }}
@@ -195,10 +196,14 @@ function SizeRow({ sizeKey, file, previewImage }: {
   );
 }
 
-function SizesGrid({ sizeFilesJson, previewImage }: { sizeFilesJson?: string; previewImage?: string }) {
+function SizesGrid({ sizeFilesJson, sizeImagesJson, previewImage }: {
+  sizeFilesJson?: string; sizeImagesJson?: string; previewImage?: string;
+}) {
   if (!sizeFilesJson) return null;
   let files: Record<string, string> = {};
+  let sizeImages: Record<string, string> = {};
   try { files = JSON.parse(sizeFilesJson); } catch { return null; }
+  try { if (sizeImagesJson) sizeImages = JSON.parse(sizeImagesJson); } catch { /* ignore */ }
 
   const byPlatform: Record<string, Array<{ key: string; file: string }>> = {};
   for (const [key, file] of Object.entries(files)) {
@@ -218,7 +223,7 @@ function SizesGrid({ sizeFilesJson, previewImage }: { sizeFilesJson?: string; pr
           }}>{platform}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {items.map(({ key, file }) => (
-              <SizeRow key={key} sizeKey={key} file={file} previewImage={previewImage} />
+              <SizeRow key={key} sizeKey={key} file={file} previewImage={previewImage} sizeImage={sizeImages[key]} />
             ))}
           </div>
         </div>
@@ -355,7 +360,7 @@ export function AdReviewPanel({ card, onClose }: AdReviewPanelProps) {
             {fields.sizeFiles && (
               <div>
                 <SectionLabel>Exported Sizes</SectionLabel>
-                <SizesGrid sizeFilesJson={fields.sizeFiles} previewImage={fields.previewImage} />
+                <SizesGrid sizeFilesJson={fields.sizeFiles} sizeImagesJson={fields.sizeImages} previewImage={fields.previewImage} />
               </div>
             )}
 
