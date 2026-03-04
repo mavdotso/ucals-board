@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import { join, resolve } from "path";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
 
-// Root creatives dir — search here and legacy batch1/ subdir
-const CREATIVES_DIR = join(
-  process.env.HOME || "/Users/maver1ck",
-  "openclaw/projects/ucals/docs/ads/creatives"
+const convex = new ConvexHttpClient(
+  process.env.NEXT_PUBLIC_CONVEX_URL ?? "https://small-platypus-541.convex.cloud"
 );
 
 export async function GET(
@@ -20,28 +18,15 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Search in creatives root, then legacy batch1 subdir
-  const candidates = [
-    join(CREATIVES_DIR, safe),
-    join(CREATIVES_DIR, "batch1", safe),
-    join(CREATIVES_DIR, "batch_20260302", safe),
-  ];
-
-  for (const candidate of candidates) {
-    // Extra safety: ensure resolved path stays within CREATIVES_DIR
-    if (!resolve(candidate).startsWith(resolve(CREATIVES_DIR))) continue;
-    try {
-      const data = await readFile(candidate);
-      return new NextResponse(data, {
-        headers: {
-          "Content-Type": "image/png",
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
-    } catch {
-      // Try next candidate
+  try {
+    const url = await convex.query(api.adAssets.getUrl, { filename: safe });
+    if (!url) {
+      return NextResponse.json({ error: "Asset not found" }, { status: 404 });
     }
+    // Redirect to Convex CDN URL — browser caches the image directly
+    return NextResponse.redirect(url, { status: 302 });
+  } catch (err) {
+    console.error("ad-preview error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
-
-  return NextResponse.json({ error: "Not found" }, { status: 404 });
 }

@@ -55,3 +55,74 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// Strip heavy base64 fields (sizeImages) from all cards in a pipeline
+export const stripHeavyFields = mutation({
+  args: { pipelineId: v.string() },
+  handler: async (ctx, args) => {
+    const cards = await ctx.db
+      .query("pipelineCards")
+      .withIndex("by_pipeline", (q) => q.eq("pipelineId", args.pipelineId))
+      .collect();
+    let count = 0;
+    for (const card of cards) {
+      const fields = { ...(card.fields ?? {}) };
+      if ("sizeImages" in fields) {
+        delete fields.sizeImages;
+        await ctx.db.patch(card._id, { fields, updatedAt: Date.now() });
+        count++;
+      }
+    }
+    return { stripped: count };
+  },
+});
+
+// Get one card ID at a time using a cursor — avoids reading heavy fields
+export const getNextHeavyCard = query({
+  args: { cursor: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("pipelineCards")
+      .paginate({ cursor: args.cursor ?? null, numItems: 1 });
+    const card = result.page[0];
+    if (!card) return { id: null, cursor: result.continueCursor, isDone: result.isDone };
+    return {
+      id: card._id,
+      hasSizeImages: "sizeImages" in (card.fields ?? {}),
+      cursor: result.continueCursor,
+      isDone: result.isDone,
+    };
+  },
+});
+
+// Strip sizeImages from a single card by ID
+export const stripCard = mutation({
+  args: { id: v.id("pipelineCards") },
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get(args.id);
+    if (!card) return { skipped: true };
+    const fields = { ...(card.fields ?? {}) };
+    if ("sizeImages" in fields) {
+      delete fields.sizeImages;
+      await ctx.db.patch(args.id, { fields, updatedAt: Date.now() });
+      return { stripped: true };
+    }
+    return { stripped: false };
+  },
+});
+
+// List cards without heavy base64 fields
+export const listLite = query({
+  args: { pipelineId: v.string() },
+  handler: async (ctx, args) => {
+    const cards = await ctx.db
+      .query("pipelineCards")
+      .withIndex("by_pipeline", (q) => q.eq("pipelineId", args.pipelineId))
+      .collect();
+    return cards.map(c => {
+      const fields = { ...(c.fields ?? {}) };
+      delete fields.sizeImages;
+      return { ...c, fields };
+    });
+  },
+});

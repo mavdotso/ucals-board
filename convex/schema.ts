@@ -181,4 +181,10 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_createdAt", ["createdAt"]),
+
+  adAssets: defineTable({
+    filename: v.string(),
+    storageId: v.string(),
+    uploadedAt: v.number(),
+  }).index("by_filename", ["filename"]),
 });
