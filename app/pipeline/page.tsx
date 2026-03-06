@@ -188,6 +188,23 @@ const COL_COLORS = [
   "#EC4899",
 ];
 
+// ─── Review score helpers ────────────────────────────────────────────────────
+
+function scoreColor(score: number): string {
+  if (score >= 12) return "#22c55e"; // green
+  if (score >= 8) return "#f59e0b";  // yellow/amber
+  return "#ef4444";                   // red
+}
+
+function verdictStyle(verdict: string): { bg: string; color: string; border: string } {
+  switch (verdict) {
+    case "PASS":     return { bg: "#22c55e14", color: "#22c55e", border: "#22c55e30" };
+    case "KILL":     return { bg: "#ef444414", color: "#ef4444", border: "#ef444430" };
+    case "FALLBACK": return { bg: "#f59e0b14", color: "#f59e0b", border: "#f59e0b30" };
+    default:         return { bg: "var(--bg-secondary)", color: "var(--text-muted)", border: "var(--border-subtle)" };
+  }
+}
+
 const AGENT_COLORS: Record<string, string> = {
   "Strategy": "#BD632F",
   "Copy": "#A4243B",
@@ -454,7 +471,15 @@ function PipelinePage() {
                   </div>
                 )}
 
-                {colCards.sort((a, b) => b.updatedAt - a.updatedAt).map(card => (
+                {colCards.sort((a, b) => {
+                  // Ads Review column: sort by reviewScore descending (best creatives first)
+                  if (activePipeline === "ads" && col === "Review") {
+                    const scoreA = Number(a.fields.reviewScore ?? -1);
+                    const scoreB = Number(b.fields.reviewScore ?? -1);
+                    if (scoreA !== scoreB) return scoreB - scoreA;
+                  }
+                  return b.updatedAt - a.updatedAt;
+                }).map(card => (
                   <div
                     key={card._id}
                     draggable
@@ -479,6 +504,40 @@ function PipelinePage() {
                       />
                     )}
                     <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 3 }}>{card.title}</div>
+
+                    {/* Review score + verdict — ads pipeline only */}
+                    {activePipeline === "ads" && (card.fields.reviewScore || card.fields.reviewVerdict) && (
+                      <div
+                        title={card.fields.reviewReason || undefined}
+                        style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6, cursor: card.fields.reviewReason ? "help" : "default" }}
+                      >
+                        {card.fields.reviewScore && (() => {
+                          const score = Number(card.fields.reviewScore);
+                          const color = scoreColor(score);
+                          return (
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4,
+                              background: `${color}18`, color, border: `1px solid ${color}35`,
+                              letterSpacing: "0.01em",
+                            }}>{score}/15</span>
+                          );
+                        })()}
+                        {card.fields.reviewVerdict && (() => {
+                          const vs = verdictStyle(card.fields.reviewVerdict);
+                          return (
+                            <span style={{
+                              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4,
+                              background: vs.bg, color: vs.color, border: `1px solid ${vs.border}`,
+                              textTransform: "uppercase", letterSpacing: "0.04em",
+                            }}>{card.fields.reviewVerdict}</span>
+                          );
+                        })()}
+                        {card.fields.reviewReason && (
+                          <span style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>ℹ</span>
+                        )}
+                      </div>
+                    )}
+
                     <div style={{ marginBottom: 4 }}><CampaignTag itemId={card._id} /></div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {activePipeline === "ads" ? (
@@ -574,6 +633,43 @@ function PipelinePage() {
                 ))}
               </div>
             </div>
+
+            {/* Review data — read-only, shown when present */}
+            {activePipeline === "ads" && (editingCard.fields.reviewScore || editingCard.fields.reviewVerdict || editingCard.fields.reviewReason) && (
+              <div style={{
+                marginBottom: 16, padding: "12px 14px", borderRadius: 8,
+                background: "var(--bg-secondary)", border: "1px solid var(--border-subtle)",
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Review</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: editingCard.fields.reviewReason ? 10 : 0 }}>
+                  {editingCard.fields.reviewScore && (() => {
+                    const score = Number(editingCard.fields.reviewScore);
+                    const color = scoreColor(score);
+                    return (
+                      <span style={{
+                        fontSize: 14, fontWeight: 800, padding: "3px 10px", borderRadius: 5,
+                        background: `${color}18`, color, border: `1px solid ${color}35`,
+                      }}>{score}/15</span>
+                    );
+                  })()}
+                  {editingCard.fields.reviewVerdict && (() => {
+                    const vs = verdictStyle(editingCard.fields.reviewVerdict);
+                    return (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 5,
+                        background: vs.bg, color: vs.color, border: `1px solid ${vs.border}`,
+                        textTransform: "uppercase", letterSpacing: "0.04em",
+                      }}>{editingCard.fields.reviewVerdict}</span>
+                    );
+                  })()}
+                </div>
+                {editingCard.fields.reviewReason && (
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    {editingCard.fields.reviewReason}
+                  </div>
+                )}
+              </div>
+            )}
 
             {pipeline.cardFields.map(f => (
               <div key={f.key} style={{ marginBottom: 12 }}>
